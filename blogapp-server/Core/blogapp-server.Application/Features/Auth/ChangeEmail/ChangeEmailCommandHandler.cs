@@ -12,7 +12,6 @@ namespace blogapp_server.Application.Features.Auth.ChangeEmail
     public class ChangeEmailCommandHandler : IRequestHandler<ChangeEmailCommand, ChangeEmailCommandResponse>
     {
         private readonly IAuthService _authService;
-
         public ChangeEmailCommandHandler(IAuthService authService)
         {
             _authService = authService;

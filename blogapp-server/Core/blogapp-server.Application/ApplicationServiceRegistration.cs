@@ -1,6 +1,7 @@
 ﻿using blogapp_server.Application.Common.Behaviors;
 using blogapp_server.Application.Features.Bookmarks.Commands.Create;
 using blogapp_server.Application.Mapping;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -19,11 +20,13 @@ namespace blogapp_server.Application
             services.AddMediatR(cfg =>
             {
                 cfg.RegisterServicesFromAssemblyContaining<CreateBookmarksCommand>();
+                cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
                 cfg.AddOpenBehavior(typeof(CurrentUserBehavior<,>));
             });
-                
 
-            services.AddAutoMapper(typeof(UserProfile).Assembly);
+
+            services.AddAutoMapper(cfg => { }, typeof(UserProfile).Assembly);
+            services.AddValidatorsFromAssembly(typeof(ApplicationServiceRegistration).Assembly);
 
             return services;
         }
