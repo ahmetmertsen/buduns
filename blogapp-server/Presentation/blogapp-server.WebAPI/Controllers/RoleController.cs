@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Roles.Commands.Create;
 using blogapp_server.Application.Features.Roles.Commands.Delete;
@@ -30,7 +30,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getAll")]
         public async Task<IActionResult> GetAll()
         {
-            var response = await _mediatR.Send(new GetAllRolesRequest());
+            var response = await _mediatR.Send(new GetAllRolesQuery());
             return Ok(response);
         }
 
@@ -39,7 +39,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _mediatR.Send(new GetRoleByIdRequest { Id = id });
+            var response = await _mediatR.Send(new GetRoleByIdQuery { Id = id });
             return Ok(response);
         }
 

@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Likes.Queries.GetById;
+using blogapp_server.Application.Features.Likes.Queries.GetById;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Notifications.Commands.Delete;
@@ -39,7 +39,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("myNotifications")]
         public async Task<IActionResult> GetMyNotifications()
         {
-            var response = await _mediatR.Send(new GetAllNotificationsByUserIdRequest());
+            var response = await _mediatR.Send(new GetAllNotificationsByUserIdQuery());
             return Ok(response);
         }
     }

@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Bookmarks.Commands.Create;
+using blogapp_server.Application.Features.Bookmarks.Commands.Create;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Bookmarks.Commands.Delete;
@@ -49,7 +49,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _mediatR.Send(new GetBookmarkByIdRequest(id));
+            var response = await _mediatR.Send(new GetBookmarkByIdQuery(id));
             return Ok(response);
         }
 
@@ -59,7 +59,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getByUserId/{userId}")]
         public async Task<IActionResult> GetByUserId(int userId)
         {
-            var response = await _mediatR.Send(new GetBookmarksByUserIdRequest { UserId = userId });
+            var response = await _mediatR.Send(new GetBookmarksByUserIdQuery { UserId = userId });
             return Ok(response);
         }
 

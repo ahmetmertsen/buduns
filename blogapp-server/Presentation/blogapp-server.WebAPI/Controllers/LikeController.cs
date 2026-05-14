@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Likes.Commands.Create;
+using blogapp_server.Application.Features.Likes.Commands.Create;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Likes.Commands.Delete;
@@ -51,7 +51,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _mediatR.Send(new GetLikeByIdRequest(id));
+            var response = await _mediatR.Send(new GetLikeByIdQuery(id));
             return Ok(response);
         }
 
@@ -61,7 +61,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getByUserId")]
         public async Task<IActionResult> GetByUserId(int userId)
         {
-            var response = await _mediatR.Send(new GetLikesByUserIdRequest { UserId = userId});
+            var response = await _mediatR.Send(new GetLikesByUserIdQuery { UserId = userId});
             return Ok(response);
         }
 
@@ -71,7 +71,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getByPostId")]
         public async Task<IActionResult> GetByPostId(int postId)
         {
-            var response = await _mediatR.Send(new GetLikesByPostIdRequest { PostId = postId });
+            var response = await _mediatR.Send(new GetLikesByPostIdQuery { PostId = postId });
             return Ok(response);
         }
 

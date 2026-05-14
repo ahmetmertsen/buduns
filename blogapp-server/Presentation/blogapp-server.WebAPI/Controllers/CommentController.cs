@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Comments.Commands.Create;
+using blogapp_server.Application.Features.Comments.Commands.Create;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Comments.Commands.Delete;
@@ -59,7 +59,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _mediatR.Send(new GetCommentByIdRequest(id));
+            var response = await _mediatR.Send(new GetCommentByIdQuery(id));
             return Ok(response);
         }
 
@@ -69,7 +69,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getByUserId/{userId}")]
         public async Task<IActionResult> GetByUserId(int userId)
         {
-            var response = await _mediatR.Send(new GetCommentsByUserIdRequest { UserId = userId});
+            var response = await _mediatR.Send(new GetCommentsByUserIdQuery { UserId = userId});
             return Ok(response);
         }
 
@@ -77,7 +77,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getByPostId/{postId}")]
         public async Task<IActionResult> GetByPostId(int postId)
         {
-            var response = await _mediatR.Send(new GetCommentsByPostIdRequest { PostId = postId });
+            var response = await _mediatR.Send(new GetCommentsByPostIdQuery { PostId = postId });
             return Ok(response);
         }
 

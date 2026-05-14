@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Followers.Commands.Create;
+using blogapp_server.Application.Features.Followers.Commands.Create;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Followers.Commands.Delete;
@@ -47,7 +47,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _mediatR.Send(new GetFollowerByIdRequest(id));
+            var response = await _mediatR.Send(new GetFollowerByIdQuery(id));
             return Ok(response);
         }
 
@@ -56,7 +56,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getAllFollowersByUserId/{userId}")]
         public async Task<IActionResult> GetAllFollowersByUserId(int userId)
         {
-            var response = await _mediatR.Send(new GetAllFollowersByUserIdRequest(userId));
+            var response = await _mediatR.Send(new GetAllFollowersByUserIdQuery(userId));
             return Ok(response);
         }
 
@@ -64,7 +64,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getAllFollowingsByUserId/{userId}")]
         public async Task<IActionResult> GetAllFollowinsByUserId(int userId)
         {
-            var response = await _mediatR.Send(new GetAllFollowingsByUserIdRequest(userId));
+            var response = await _mediatR.Send(new GetAllFollowingsByUserIdQuery(userId));
             return Ok(response);
         }
         

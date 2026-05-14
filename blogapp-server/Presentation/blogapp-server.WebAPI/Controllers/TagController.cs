@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Tags.Commands.Create;
+using blogapp_server.Application.Features.Tags.Commands.Create;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Tags.Commands.Delete;
@@ -58,7 +58,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getAll")]
         public async Task<IActionResult> GetAll()
         {
-            var response = await _mediatR.Send(new GetAllTagsRequest());
+            var response = await _mediatR.Send(new GetAllTagsQuery());
             return Ok(response);
         }
 
@@ -66,7 +66,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _mediatR.Send(new GetTagByIdRequest(id));
+            var response = await _mediatR.Send(new GetTagByIdQuery(id));
             return Ok(response);
         }
     }

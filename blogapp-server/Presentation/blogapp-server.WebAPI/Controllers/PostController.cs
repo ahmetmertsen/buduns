@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Posts.Commands.Create;
+using blogapp_server.Application.Features.Posts.Commands.Create;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Posts.Commands.Delete;
@@ -59,7 +59,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getAll")]
         public async Task<IActionResult> GetAll()
         {
-            var response = await _mediatR.Send(new GetAllPostsRequest());
+            var response = await _mediatR.Send(new GetAllPostsQuery());
             return Ok(response);
         }
 
@@ -67,7 +67,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _mediatR.Send(new GetPostByIdRequest(id));
+            var response = await _mediatR.Send(new GetPostByIdQuery(id));
             return Ok(response);
         }
     }

@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Auth.Register;
 using blogapp_server.Application.Features.Users.Commands.AssignRoleToUser;
@@ -92,7 +92,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getAllUsers")]
         public async Task<IActionResult> GetAllUsers()
         {
-            var response = await _mediatR.Send(new GetAllUsersRequest());
+            var response = await _mediatR.Send(new GetAllUsersQuery());
             return Ok(response);
         }
 
@@ -100,7 +100,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getUserById/{userId}")]
         public async Task<IActionResult> GetUserById(int userId)
         {
-            var response = await _mediatR.Send(new GetUserByIdRequest() { UserId = userId });
+            var response = await _mediatR.Send(new GetUserByIdQuery() { UserId = userId });
             return Ok(response);
         }
 
@@ -108,7 +108,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getUserByUsername/{userName}")]
         public async Task<IActionResult> GetUserByUsername(string userName)
         {
-            var response = await _mediatR.Send(new GetUserByUsernameRequest() { UserName = userName });
+            var response = await _mediatR.Send(new GetUserByUsernameQuery() { UserName = userName });
             return Ok(response);
         }
 
@@ -118,7 +118,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getRolesToUser/{userId}")]
         public async Task<IActionResult> GetRolesToUser(int userId)
         {
-            var response = await _mediatR.Send(new GetRolesToUserRequest() { UserId = userId });
+            var response = await _mediatR.Send(new GetRolesToUserQuery() { UserId = userId });
             return Ok(response);
         }
 

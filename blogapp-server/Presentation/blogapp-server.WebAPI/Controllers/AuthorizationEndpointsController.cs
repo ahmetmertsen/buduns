@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Common.CustomAttrributes;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.AuthorizationEndpoint.Commands.AssignRoleEndpoint;
 using blogapp_server.Application.Features.AuthorizationEndpoint.Queries.GetRolesToEndpoint;
 using blogapp_server.Domain.Enums;
@@ -25,7 +25,7 @@ namespace blogapp_server.WebAPI.Controllers
         [AuthorizeDefinition(Menu = "Authorization Endpoints", ActionType = ActionType.Reading, Definition = "Get Roles To Endpoint")]
         [HttpPost]
         [Route("getRolesToEndpoint")]
-        public async Task<IActionResult> GetRolesToEndpoint([FromBody] GetRolesToEndpointRequest request)
+        public async Task<IActionResult> GetRolesToEndpoint([FromBody] GetRolesToEndpointQuery request)
         {
             var response = await _mediatR.Send(request);
             return Ok(response);

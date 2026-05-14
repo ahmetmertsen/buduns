@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Features.Report.Commands.CreatePostReport;
+using blogapp_server.Application.Features.Report.Commands.CreatePostReport;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Report.Commands.CreateUserReport;
@@ -45,7 +45,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Authorize(Roles = "Admin")]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Reading, Definition = "Get Reports")]
         [HttpGet]
-        public async Task<IActionResult> GetReports([FromQuery] GetReportsRequest request)
+        public async Task<IActionResult> GetReports([FromQuery] GetReportsQuery request)
         {
             var response = await _mediatR.Send(request);
             return Ok(response);
@@ -57,7 +57,7 @@ namespace blogapp_server.WebAPI.Controllers
         [Route("getById/{reportId}")]
         public async Task<IActionResult> GetReportById(int reportId)
         {
-            var response = await _mediatR.Send(new GetReportByIdRequest { ReportId = reportId });
+            var response = await _mediatR.Send(new GetReportByIdQuery { ReportId = reportId });
             return Ok(response);
         }
 
