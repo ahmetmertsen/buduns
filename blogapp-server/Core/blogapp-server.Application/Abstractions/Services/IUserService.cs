@@ -23,6 +23,6 @@ namespace blogapp_server.Application.Abstractions.Services
         Task<UserDto> GetUserByUserName(string userName);
         Task AssignRoleToUserAsync(int userId, string[] roles);
         Task<string[]> GetRolesToUserAsync(string userIdOrName);
-
+        Task<bool> HasRolePermissionToEndpointAsync(string name, string code);
     }
 }

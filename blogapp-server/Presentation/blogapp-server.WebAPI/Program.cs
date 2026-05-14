@@ -1,6 +1,7 @@
 using blogapp_server.Application;
 using blogapp_server.Infrastructure;
 using blogapp_server.Persistence;
+using blogapp_server.WebAPI.Filters;
 using blogapp_server.WebAPI.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -19,7 +20,10 @@ namespace blogapp_server.WebAPI
 
             // Add services to the container.
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers(options =>
+            {
+                options.Filters.Add<RolePermissionFilter>();
+            });
             
             #region CORS
             builder.Services.AddCors(options =>
