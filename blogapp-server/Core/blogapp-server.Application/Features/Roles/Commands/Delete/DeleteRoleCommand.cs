@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Roles.Commands.Delete
 {
-    public record DeleteRolesCommand(int Id) : IRequest<DeleteRolesCommandResponse>
+    public class DeleteRoleCommand : IRequest<DeleteRoleCommandResponse>
     {
+        public int Id { get; set; }
     }
 }

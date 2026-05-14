@@ -1,5 +1,7 @@
 ﻿using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Abstractions.Services.Configurations;
 using blogapp_server.Application.Abstractions.Token;
+using blogapp_server.Infrastructure.Services.Configurations;
 using blogapp_server.Infrastructure.Services.Mail;
 using blogapp_server.Infrastructure.Services.Token;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +20,7 @@ namespace blogapp_server.Infrastructure
         {
             services.AddScoped<ITokenHandler, TokenHandler>();
             services.AddScoped<IMailService, MailService>();
+            services.AddScoped<IApplicationService, ApplicationService>();
 
             return services;
         }

@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Roles.Commands.Delete
 {
-    public record DeleteRolesCommandResponse(bool Succeeded, string Message)
+    public class DeleteRoleCommandResponse
     {
+        public bool Succeeded { get; set; }
+        public string Message { get; set; } = null!;
     }
 }

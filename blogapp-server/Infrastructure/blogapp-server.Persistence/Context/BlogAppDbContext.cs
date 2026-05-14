@@ -24,7 +24,9 @@ namespace blogapp_server.Persistence.Context
         public DbSet<Bookmark> Bookmarks { get; set; }
         public DbSet<Utility> Utilities { get; set; }
         public DbSet<Report> Reports { get; set; }
-        
+        public DbSet<Menu> Menus { get; set; }
+        public DbSet<Endpoint> Endpoints { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

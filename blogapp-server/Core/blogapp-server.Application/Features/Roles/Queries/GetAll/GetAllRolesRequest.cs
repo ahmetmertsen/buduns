@@ -1,4 +1,4 @@
-﻿using blogapp_server.Application.Dtos;
+﻿using blogapp_server.Application.Dtos.Role;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Roles.Queries.GetAll
 {
-    public record GetAllRolesRequest : IRequest<List<RoleDto>>
+    public class GetAllRolesRequest : IRequest<List<RoleDto>>
     {
     }
 }

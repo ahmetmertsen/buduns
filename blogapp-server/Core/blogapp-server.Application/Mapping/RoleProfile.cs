@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using blogapp_server.Application.Dtos;
+using blogapp_server.Application.Dtos.Role;
 using blogapp_server.Application.Features.Roles.Commands.Create;
 using blogapp_server.Application.Features.Roles.Commands.Update;
 using blogapp_server.Domain.Entities.Identity;
@@ -15,8 +15,8 @@ namespace blogapp_server.Application.Mapping
     {
         public RoleProfile() 
         {
-            CreateMap<CreateRolesCommand, Role>();
-            CreateMap<UpdateRolesCommand, Role>();
+            CreateMap<CreateRoleCommand, Role>();
+            CreateMap<UpdateRoleCommand, Role>();
 
             CreateMap<Role, RoleDto>();
         }
