@@ -1,9 +1,12 @@
 ﻿using blogapp_server.Application.Features.Comments.Commands.Create;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Comments.Commands.Delete;
 using blogapp_server.Application.Features.Comments.Commands.Update;
 using blogapp_server.Application.Features.Comments.Queries.GetById;
 using blogapp_server.Application.Features.Comments.Queries.GetByPostId;
 using blogapp_server.Application.Features.Comments.Queries.GetByUserId;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -23,6 +26,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Comments, ActionType = ActionType.Writing, Definition = "Create Comment")]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateCommentsCommand request)
@@ -32,6 +36,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Comments, ActionType = ActionType.Updating, Definition = "Update Comment")]
         [HttpPut]
         [Route("update")]
         public async Task<IActionResult> Update([FromBody] UpdateCommentsCommand request)
@@ -41,6 +46,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Comments, ActionType = ActionType.Deleting, Definition = "Delete Comment")]
         [HttpDelete]
         [Route("delete")]
         public async Task<IActionResult> Delete([FromBody] DeleteCommentsCommand request)
@@ -58,6 +64,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Comments, ActionType = ActionType.Reading, Definition = "Get Comments By User Id")]
         [HttpGet]
         [Route("getByUserId/{userId}")]
         public async Task<IActionResult> GetByUserId(int userId)

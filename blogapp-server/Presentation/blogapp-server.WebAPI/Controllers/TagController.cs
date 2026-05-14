@@ -1,8 +1,11 @@
 ﻿using blogapp_server.Application.Features.Tags.Commands.Create;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Tags.Commands.Delete;
 using blogapp_server.Application.Features.Tags.Commands.Update;
 using blogapp_server.Application.Features.Tags.Queries.GetAll;
 using blogapp_server.Application.Features.Tags.Queries.GetById;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +25,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Tags, ActionType = ActionType.Writing, Definition = "Create Tag")]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateTagsCommand request)
@@ -31,6 +35,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Tags, ActionType = ActionType.Updating, Definition = "Update Tag")]
         [HttpPut]
         [Route("update")]
         public async Task<IActionResult> Update([FromBody] UpdateTagsCommand request)
@@ -40,6 +45,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Tags, ActionType = ActionType.Deleting, Definition = "Delete Tag")]
         [HttpDelete]
         [Route("delete")]
         public async Task<IActionResult> Delete([FromBody] DeleteTagsCommand request)

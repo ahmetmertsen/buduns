@@ -1,7 +1,10 @@
 ﻿using blogapp_server.Application.Features.Followers.Commands.Create;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Followers.Commands.Delete;
 using blogapp_server.Application.Features.Followers.Queries.GetAllByUserId;
 using blogapp_server.Application.Features.Followers.Queries.GetById;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -21,6 +24,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Followers, ActionType = ActionType.Writing, Definition = "Follow User")]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateFollowersCommand request)
@@ -30,6 +34,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Followers, ActionType = ActionType.Deleting, Definition = "Unfollow User")]
         [HttpDelete]
         [Route("delete")]
         public async Task<IActionResult> Delete([FromBody] DeleteFollowersCommand request)

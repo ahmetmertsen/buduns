@@ -1,8 +1,11 @@
 ﻿using blogapp_server.Application.Features.Likes.Commands.Create;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Likes.Commands.Delete;
 using blogapp_server.Application.Features.Likes.Queries.GetById;
 using blogapp_server.Application.Features.Likes.Queries.GetByPostId;
 using blogapp_server.Application.Features.Likes.Queries.GetByUserId;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +25,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Writing, Definition = "Create Like")]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateLikesCommand request)
@@ -31,6 +35,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Deleting, Definition = "Delete Like")]
         [HttpDelete]
         [Route("delete")]
         public async Task<IActionResult> Delete([FromBody] DeleteLikesCommand request)
@@ -40,6 +45,8 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
 
+        [Authorize(Roles = "User")]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get Like By Id")]
         [HttpGet]
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -49,6 +56,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get Likes By User Id")]
         [HttpGet]
         [Route("getByUserId")]
         public async Task<IActionResult> GetByUserId(int userId)
@@ -57,6 +65,8 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
+        [Authorize(Roles = "User")]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get Likes By Post Id")]
         [HttpGet]
         [Route("getByPostId")]
         public async Task<IActionResult> GetByPostId(int postId)

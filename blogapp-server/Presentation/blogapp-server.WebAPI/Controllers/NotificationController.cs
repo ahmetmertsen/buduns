@@ -1,6 +1,9 @@
 ﻿using blogapp_server.Application.Features.Likes.Queries.GetById;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Notifications.Commands.Delete;
 using blogapp_server.Application.Features.Notifications.Queries.GetAllByUserId;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -21,6 +24,7 @@ namespace blogapp_server.WebAPI.Controllers
 
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Notification, ActionType = ActionType.Deleting, Definition = "Delete Notification")]
         [HttpDelete]
         [Route("delete")]
         public async Task<IActionResult> Delete([FromBody] DeleteNotificationCommand request)
@@ -30,6 +34,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Notification, ActionType = ActionType.Reading, Definition = "Get My Notifications")]
         [HttpGet]
         [Route("myNotifications")]
         public async Task<IActionResult> GetMyNotifications()

@@ -9,6 +9,7 @@ namespace blogapp_server.Application.Common.Consts
     public static class AuthorizeDefinitionConstants
     {
         public const string Users = "Users";
+        public const string Auth = "Auth";
         public const string Roles = "Roles";
         public const string Posts = "Posts";
         public const string Likes = "Likes";

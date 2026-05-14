@@ -7,6 +7,7 @@ using blogapp_server.Application.Features.Roles.Queries.GetAll;
 using blogapp_server.Application.Features.Roles.Queries.GetById;
 using blogapp_server.Domain.Enums;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,6 +15,7 @@ namespace blogapp_server.WebAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class RoleController : ControllerBase
     {
         private readonly IMediator _mediatR;

@@ -1,10 +1,13 @@
 ﻿using blogapp_server.Application.Dtos.Auth;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Auth.ChangeEmail;
 using blogapp_server.Application.Features.Auth.ChangePhoneNumber;
 using blogapp_server.Application.Features.Auth.ForgotPassword;
 using blogapp_server.Application.Features.Auth.Login;
 using blogapp_server.Application.Features.Auth.MailVerify;
 using blogapp_server.Application.Features.Auth.RefreshTokenLogin;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -48,6 +51,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Auth, ActionType = ActionType.Writing, Definition = "Send Mail Verify")]
         [HttpPost]
         [Route("mailVerify")]
         public async Task<IActionResult> MailVerify([FromBody] MailVerifyCommand request)
@@ -57,6 +61,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Auth, ActionType = ActionType.Updating, Definition = "Change Email")]
         [HttpPost]
         [Route("emailChange")]
         public async Task<IActionResult> EmailChange([FromBody] ChangeEmailCommand request)
@@ -66,6 +71,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Auth, ActionType = ActionType.Updating, Definition = "Change Phone Number")]
         [HttpPost]
         [Route("changePhoneNumber")]
         public async Task<IActionResult> ChangePhoneNumber([FromBody] ChangePhoneNumberCommand request)

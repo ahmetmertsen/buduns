@@ -1,8 +1,11 @@
 ﻿using blogapp_server.Application.Features.Report.Commands.CreatePostReport;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Report.Commands.CreateUserReport;
 using blogapp_server.Application.Features.Report.Commands.ReviewReport;
 using blogapp_server.Application.Features.Report.Queries.GetById;
 using blogapp_server.Application.Features.Report.Queries.GetReports;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +25,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Writing, Definition = "Create Post Report")]
         [HttpPost("createPostReport")]
         public async Task<IActionResult> CreatePostReport([FromBody] CreatePostReportCommand request)
         {
@@ -30,6 +34,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Writing, Definition = "Create User Report")]
         [HttpPost("createUserReport")]
         public async Task<IActionResult> CreateUserReport([FromBody] CreateUserReportCommand request)
         {
@@ -37,7 +42,8 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin")]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Reading, Definition = "Get Reports")]
         [HttpGet]
         public async Task<IActionResult> GetReports([FromQuery] GetReportsRequest request)
         {
@@ -45,7 +51,8 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin")]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Reading, Definition = "Get Report By Id")]
         [HttpGet]
         [Route("getById/{reportId}")]
         public async Task<IActionResult> GetReportById(int reportId)
@@ -54,7 +61,8 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin")]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Updating, Definition = "Review Report")]
         [HttpPost("review")]
         public async Task<IActionResult> ReviewReport([FromBody] ReviewReportCommand request)
         {

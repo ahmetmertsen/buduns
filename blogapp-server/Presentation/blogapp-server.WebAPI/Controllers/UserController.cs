@@ -47,6 +47,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Users, ActionType = ActionType.Updating, Definition = "Update User Mail Verify")]
         [HttpPost]
         [Route("updateMailVerify")]
         public async Task<IActionResult> UpdateUserMailVerify([FromBody] UpdateUserMailVerifyCommand request)
@@ -56,6 +57,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Users, ActionType = ActionType.Updating, Definition = "Update User Profile")]
         [HttpPost]
         [Route("updateUserProfile")]
         public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileCommand request)
@@ -65,6 +67,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Users, ActionType = ActionType.Updating, Definition = "Update User Email")]
         [HttpPost]
         [Route("updateUserEmail")]
         public async Task<IActionResult> UpdateUserEmail([FromBody] UpdateUserEmailCommand request)
@@ -74,6 +77,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Users, ActionType = ActionType.Updating, Definition = "Update User Phone Number")]
         [HttpPost]
         [Route("updatePhoneNumber")]
         public async Task<IActionResult> UpdateUserPhoneNumber([FromBody] UpdateUserPhoneNumberCommand request)

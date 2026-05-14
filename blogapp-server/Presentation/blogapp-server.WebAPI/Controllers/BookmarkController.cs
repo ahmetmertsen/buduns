@@ -1,7 +1,10 @@
 ﻿using blogapp_server.Application.Features.Bookmarks.Commands.Create;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Bookmarks.Commands.Delete;
 using blogapp_server.Application.Features.Bookmarks.Queries.GetById;
 using blogapp_server.Application.Features.Bookmarks.Queries.GetUserId;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -21,6 +24,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Bookmarks, ActionType = ActionType.Writing, Definition = "Create Bookmark")]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateBookmarksCommand request)
@@ -30,6 +34,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Bookmarks, ActionType = ActionType.Deleting, Definition = "Delete Bookmark")]
         [HttpDelete]
         [Route("delete")]
         public async Task<IActionResult> Delete([FromBody] DeleteBookmarksCommand request)
@@ -38,6 +43,8 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
+        [Authorize(Roles = "User")]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Bookmarks, ActionType = ActionType.Reading, Definition = "Get Bookmark By Id")]
         [HttpGet]
         [Route("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -47,6 +54,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Bookmarks, ActionType = ActionType.Reading, Definition = "Get Bookmarks By User Id")]
         [HttpGet]
         [Route("getByUserId/{userId}")]
         public async Task<IActionResult> GetByUserId(int userId)

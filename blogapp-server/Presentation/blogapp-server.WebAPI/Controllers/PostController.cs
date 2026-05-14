@@ -1,9 +1,12 @@
 ﻿using blogapp_server.Application.Features.Posts.Commands.Create;
+using blogapp_server.Application.Common.Consts;
+using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Posts.Commands.Delete;
 using blogapp_server.Application.Features.Posts.Commands.Update;
 using blogapp_server.Application.Features.Posts.Queries.GetAll;
 using blogapp_server.Application.Features.Posts.Queries.GetById;
 using blogapp_server.Application.Features.Users.Commands.Delete;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -23,6 +26,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Posts, ActionType = ActionType.Writing, Definition = "Create Post")]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreatePostsCommand request)
@@ -32,6 +36,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Posts, ActionType = ActionType.Updating, Definition = "Update Post")]
         [HttpPut]
         [Route("update")]
         public async Task<IActionResult> Update([FromBody] UpdatePostsCommand request)
@@ -41,6 +46,7 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Posts, ActionType = ActionType.Deleting, Definition = "Delete Post")]
         [HttpDelete]
         [Route("delete")]
         public async Task<IActionResult> Delete([FromBody] DeletePostsCommand request)
