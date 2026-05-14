@@ -1,8 +1,11 @@
 ﻿using AutoMapper;
 using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Dtos.User;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.Helpers;
+using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Entities.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -18,12 +21,14 @@ namespace blogapp_server.Persistence.Services
     public class UserService : IUserService
     {
         private readonly UserManager<User> _userManager;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         
-        public UserService(UserManager<User> userManager, IMapper mapper)
+        public UserService(UserManager<User> userManager, IMapper mapper, IUnitOfWork unitOfWork)
         {
             _userManager = userManager;
             _mapper = mapper;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<RegisterUserResponseDto> RegisterAsync(RegisterUserRequestDto request)
@@ -252,7 +257,94 @@ namespace blogapp_server.Persistence.Services
             {
                 throw new ChangePhoneNumberFailedException("Telefon numarası güncellenirken hata oluştu...");
             }
+        }
 
+
+        public async Task<List<UserDto>> GetAllUsersAsync()
+        {
+            var users = await _userManager.Users.ToListAsync();
+            var response = _mapper.Map<List<UserDto>>(users);
+
+            return response;
+        }
+
+        public async Task<UserDto> GetUserById(int userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                throw new NotFoundException("Kullanıcı bulunamadı.");
+            }
+            var response = _mapper.Map<UserDto>(user);
+            return response;
+        }
+
+        public async Task<UserDto> GetUserByUserName(string userName)
+        {
+            var user = await _userManager.FindByNameAsync(userName);
+            if (user == null)
+            {
+                throw new NotFoundException("Kullanıcı bulunamadı.");
+            }
+            var response = _mapper.Map<UserDto>(user);
+            return response;
+        }
+
+        public async Task AssignRoleToUserAsync(int userId, string[] roles)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user != null)
+            {
+                var userRoles = await _userManager.GetRolesAsync(user);
+                await _userManager.RemoveFromRolesAsync(user, userRoles);
+
+                await _userManager.AddToRolesAsync(user, roles);
+            }
+        }
+
+
+        public async Task<string[]> GetRolesToUserAsync(string userIdOrName)
+        {
+            var user = await _userManager.FindByIdAsync(userIdOrName);
+            if (user == null)
+            {
+                user = await _userManager.FindByNameAsync(userIdOrName);
+                if (user == null)
+                {
+                    throw new NotFoundException("Kullanıcı bulunamadı.");
+                }
+            }
+            var userRoles = await _userManager.GetRolesAsync(user);
+            return userRoles.ToArray();
+        }
+
+        public async Task<bool> HasRolePermissionToEndpointAsync(string name, string code)
+        {
+            var userRoles = await GetRolesToUserAsync(name);
+            if (!userRoles.Any())
+            {
+                return false;
+            }
+
+            Endpoint? endpoint = await _unitOfWork.EndpointRepository.GetRolesToEndpoint(code);
+            if (endpoint == null)
+            {
+                return false;
+            }
+
+            var hasRole = false;
+            var endpointRoles = endpoint.Roles.Select(r => r.Name);
+            foreach (var userRole in userRoles)
+            {
+                foreach (var endpointRole in endpointRoles)
+                {
+                    if (userRole == endpointRole)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
     }
 }

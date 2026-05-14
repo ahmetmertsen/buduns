@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Users.Queries.GetAll
 {
-    public record GetAllUsersRequest : IRequest<List<UserDto>>
+    public class GetAllUsersRequest : IRequest<List<UserDto>>
     {
     }
 }

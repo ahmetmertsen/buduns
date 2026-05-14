@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Users.Queries.GetByUsername
 {
-    public record GetUserByUsernameRequest(string UserName) : IRequest<UserDto>
+    public class GetUserByUsernameRequest : IRequest<UserDto>
     {
+        public string UserName { get; set; }
     }
 }

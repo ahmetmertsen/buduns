@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Users.Queries.GetById
 {
-    public record GetUserByIdRequest(int Id) : IRequest<UserDto>
+    public class GetUserByIdRequest : IRequest<UserDto>
     {
+        public int UserId { get; set; }
     }
 }
