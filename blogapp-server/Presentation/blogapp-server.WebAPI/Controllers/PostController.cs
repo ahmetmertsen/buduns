@@ -4,6 +4,7 @@ using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Posts.Commands.Delete;
 using blogapp_server.Application.Features.Posts.Commands.Update;
 using blogapp_server.Application.Features.Posts.Queries.GetAll;
+using blogapp_server.Application.Features.Posts.Queries.GetDailyTopPosts;
 using blogapp_server.Application.Features.Posts.Queries.GetById;
 using blogapp_server.Application.Features.Users.Commands.Delete;
 using blogapp_server.Domain.Enums;
@@ -68,6 +69,14 @@ namespace blogapp_server.WebAPI.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var response = await _mediatR.Send(new GetPostByIdQuery(id));
+            return Ok(response);
+        }
+
+        [HttpGet]
+        [Route("daily-top50")]
+        public async Task<IActionResult> GetDailyTop50()
+        {
+            var response = await _mediatR.Send(new GetDailyTopPostsQuery());
             return Ok(response);
         }
     }

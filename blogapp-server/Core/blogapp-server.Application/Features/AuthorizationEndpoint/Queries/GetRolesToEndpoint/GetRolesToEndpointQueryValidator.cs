@@ -9,7 +9,7 @@ namespace blogapp_server.Application.Features.AuthorizationEndpoint.Queries.GetR
 {
     public class GetRolesToEndpointQueryValidator : AbstractValidator<GetRolesToEndpointQuery>  
     {
-        GetRolesToEndpointQueryValidator() 
+        public GetRolesToEndpointQueryValidator() 
         {
             RuleFor(r => r.Code)
                 .NotEmpty().WithMessage("Code alaný boþ olamaz.");
