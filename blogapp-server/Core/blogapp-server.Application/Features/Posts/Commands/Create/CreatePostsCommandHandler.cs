@@ -3,6 +3,7 @@ using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,11 +16,13 @@ namespace blogapp_server.Application.Features.Posts.Commands.Create
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<CreatePostsCommandHandler> _logger;
 
-        public CreatePostsCommandHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public CreatePostsCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreatePostsCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<CreatePostsCommandResponse> Handle(CreatePostsCommand request, CancellationToken cancellationToken)
@@ -50,6 +53,13 @@ namespace blogapp_server.Application.Features.Posts.Commands.Create
  
             await _unitOfWork.PostRepository.AddAsync(post);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Post created. PostId: {PostId}, UserId: {UserId}, TagCount: {TagCount}",
+                post.Id,
+                request.UserId,
+                tagIds.Count);
+
             return new CreatePostsCommandResponse(true, "Post başarıyla eklenmiştir.");
         }
     }

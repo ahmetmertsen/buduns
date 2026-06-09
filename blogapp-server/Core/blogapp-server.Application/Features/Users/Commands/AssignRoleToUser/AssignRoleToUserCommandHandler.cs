@@ -1,5 +1,6 @@
 ﻿using blogapp_server.Application.Abstractions.Services;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,15 +12,24 @@ namespace blogapp_server.Application.Features.Users.Commands.AssignRoleToUser
     public class AssignRoleToUserCommandHandler : IRequestHandler<AssignRoleToUserCommand, AssignRoleToUserCommandResponse>
     {
         private readonly IUserService _userService;
+        private readonly ILogger<AssignRoleToUserCommandHandler> _logger;
 
-        public AssignRoleToUserCommandHandler(IUserService userService)
+        public AssignRoleToUserCommandHandler(IUserService userService, ILogger<AssignRoleToUserCommandHandler> logger)
         {
             _userService = userService;
+            _logger = logger;
         }
 
         public async Task<AssignRoleToUserCommandResponse> Handle(AssignRoleToUserCommand request, CancellationToken cancellationToken)
         {
             await _userService.AssignRoleToUserAsync(request.UserId, request.Roles);
+
+            _logger.LogInformation(
+                "Roles assigned to user. UserId: {UserId}, Roles: {Roles}, RoleCount: {RoleCount}",
+                request.UserId,
+                request.Roles,
+                request.Roles.Length);
+
             AssignRoleToUserCommandResponse response = new()
             {
                 Succeeded = true,

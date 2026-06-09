@@ -3,6 +3,7 @@ using blogapp_server.Application.Repositories;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,10 +15,12 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
     public class ReviewReportCommandHandler : IRequestHandler<ReviewReportCommand, ReviewReportCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<ReviewReportCommandHandler> _logger;
 
-        public ReviewReportCommandHandler(IUnitOfWork unitOfWork)
+        public ReviewReportCommandHandler(IUnitOfWork unitOfWork, ILogger<ReviewReportCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<ReviewReportCommandResponse> Handle(ReviewReportCommand request, CancellationToken cancellationToken)
@@ -50,6 +53,12 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
 
             _unitOfWork.ReportRepository.Update(report);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Report reviewed. ReportId: {ReportId}, ReviewedByUserId: {ReviewedByUserId}, Status: {Status}",
+                request.ReportId,
+                request.UserId,
+                request.Status);
 
             return new ReviewReportCommandResponse(Succeeded:true, Message:"Şikayet başarıyla güncellendi.");
         }

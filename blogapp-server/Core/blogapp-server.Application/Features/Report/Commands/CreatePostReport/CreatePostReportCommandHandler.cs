@@ -4,6 +4,7 @@ using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,10 +16,12 @@ namespace blogapp_server.Application.Features.Report.Commands.CreatePostReport
     public class CreatePostReportCommandHandler : IRequestHandler<CreatePostReportCommand, CreatePostReportCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<CreatePostReportCommandHandler> _logger;
 
-        public CreatePostReportCommandHandler(IUnitOfWork unitOfWork)
+        public CreatePostReportCommandHandler(IUnitOfWork unitOfWork, ILogger<CreatePostReportCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<CreatePostReportCommandResponse> Handle(CreatePostReportCommand request, CancellationToken cancellationToken)
@@ -49,6 +52,13 @@ namespace blogapp_server.Application.Features.Report.Commands.CreatePostReport
 
             await _unitOfWork.ReportRepository.AddAsync(report);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Post report created. ReportId: {ReportId}, ReporterUserId: {ReporterUserId}, TargetPostId: {TargetPostId}, Reason: {Reason}",
+                report.Id,
+                request.UserId,
+                request.PostId,
+                request.Reason);
 
             return new CreatePostReportCommandResponse(Succeeded:true, Message:"Şikayetiniz başarıyla alındı.");
         }

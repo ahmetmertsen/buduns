@@ -5,6 +5,7 @@ using blogapp_server.Domain.Entities.Identity;
 using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,11 +18,13 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<User> _userManager;
+        private readonly ILogger<CreateUserReportCommandHandler> _logger;
 
-        public CreateUserReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager)
+        public CreateUserReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<CreateUserReportCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
+            _logger = logger;
         }
 
         public async Task<CreateUserReportCommandResponse> Handle(CreateUserReportCommand request, CancellationToken cancellationToken)
@@ -59,6 +62,13 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
 
             await _unitOfWork.ReportRepository.AddAsync(report);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "User report created. ReportId: {ReportId}, ReporterUserId: {ReporterUserId}, TargetUserId: {TargetUserId}, Reason: {Reason}",
+                report.Id,
+                request.UserId,
+                request.TargetUserId,
+                request.Reason);
 
             return new CreateUserReportCommandResponse(Succeeded:true, Message:"Şikayetiniz başarıyla alındı.");
         }

@@ -1,11 +1,17 @@
 using blogapp_server.Application;
 using blogapp_server.Infrastructure;
 using blogapp_server.Persistence;
+using blogapp_server.WebAPI.Configurations.Serilog.ColumnWriters;
 using blogapp_server.WebAPI.Filters;
 using blogapp_server.WebAPI.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Context;
+using Serilog.Core;
+using Serilog.Events;
+using Serilog.Sinks.PostgreSQL;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -40,6 +46,42 @@ namespace blogapp_server.WebAPI
                         .AllowCredentials();
                 });
             });
+            #endregion
+
+            #region Serilog
+            Logger log = new LoggerConfiguration()
+                .WriteTo.File(
+                    path: "logs/blogapp-.txt",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 30,
+                    fileSizeLimitBytes: 10_000_000,
+                    rollOnFileSizeLimit: true,
+                    restrictedToMinimumLevel: LogEventLevel.Information,
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+                .WriteTo.File(
+                    path: "logs/errors/error-.txt",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 60,
+                    restrictedToMinimumLevel: LogEventLevel.Error)
+                .WriteTo.PostgreSQL(builder.Configuration.GetConnectionString("DefaultConnection"), "logs", needAutoCreateTable:true,
+                    columnOptions: new Dictionary<string, ColumnWriterBase>
+                    {
+                        {"message", new RenderedMessageColumnWriter() },
+                        {"message_template", new MessageTemplateColumnWriter() },
+                        {"level", new LevelColumnWriter() },
+                        {"time_stamp", new TimestampColumnWriter() },
+                        {"exception", new ExceptionColumnWriter() },
+                        {"log_event", new LogEventSerializedColumnWriter() },
+                        {"user_name", new UsernameColumnWriter() }
+                    },
+                    restrictedToMinimumLevel: LogEventLevel.Warning
+                )
+                .WriteTo.Seq(builder.Configuration["Seq:ServerURL"])
+                .Enrich.FromLogContext()
+                .MinimumLevel.Information()
+                .CreateLogger();
+
+            builder.Host.UseSerilog(log);
             #endregion
 
             #region Swagger
@@ -104,7 +146,7 @@ namespace blogapp_server.WebAPI
                         ValidAudience = builder.Configuration["Token:Audience"],
                         ValidIssuer = builder.Configuration["Token:Issuer"],
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Token:SecurityKey"])),
-                        NameClaimType = JwtRegisteredClaimNames.UniqueName,
+                        NameClaimType = ClaimTypes.Name, //Jwt üzerinden gelen Name claimine karþýlýk gelen deðeri User.Identity.Name propertysinden elde edilir.
                         RoleClaimType = ClaimTypes.Role,
                         ClockSkew = TimeSpan.FromMinutes(1)
                     };
@@ -137,8 +179,6 @@ namespace blogapp_server.WebAPI
 
             var app = builder.Build();
 
-            app.UseMiddleware<GlobalExceptionMiddleware>();
-
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -154,8 +194,14 @@ namespace blogapp_server.WebAPI
             app.UseCors("AllowVueDev");
 
             app.UseAuthentication();
-            app.UseAuthorization();
 
+            app.UseMiddleware<UserNameLogContextMiddleware>();
+
+            app.UseSerilogRequestLogging();
+
+            app.UseMiddleware<GlobalExceptionMiddleware>();
+
+            app.UseAuthorization();
 
             app.MapControllers();
 

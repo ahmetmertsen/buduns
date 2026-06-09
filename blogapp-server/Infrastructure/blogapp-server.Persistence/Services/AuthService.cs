@@ -8,6 +8,7 @@ using blogapp_server.Domain.Entities.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,14 +24,16 @@ namespace blogapp_server.Persistence.Services
         private readonly ITokenHandler _tokenHandler;
         private readonly IUserService _userService;
         private readonly IMailService _mailService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(UserManager<User> userManager, SignInManager<User> signInManager, ITokenHandler tokenHandler,  IUserService userService, IMailService mailService)
+        public AuthService(UserManager<User> userManager, SignInManager<User> signInManager, ITokenHandler tokenHandler,  IUserService userService, IMailService mailService, ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _tokenHandler = tokenHandler;
             _userService = userService;
             _mailService = mailService;
+            _logger = logger;
         }
 
         public async Task<Token> LoginAsync(string usernameOrEmail, string password)
@@ -41,6 +44,7 @@ namespace blogapp_server.Persistence.Services
                 user = await _userManager.FindByEmailAsync(usernameOrEmail);
                 if (user == null)
                 {
+                    _logger.LogWarning("Login failed. Reason: {Reason}", "UserNotFound");
                     throw new UnauthorizedAccesException("Kullanıcı adı veya şifre hatalı!");
                 }
             }
@@ -50,10 +54,23 @@ namespace blogapp_server.Persistence.Services
                 var roles = await _userManager.GetRolesAsync(user);
                 Token token = _tokenHandler.CreateAccessToken(user, roles);
                 await _userService.UpdateRefreshToken(token.RefreshToken, user, token.Expiration);
+
+                _logger.LogInformation(
+                    "Login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}",
+                    user.Id,
+                    user.UserName,
+                    roles.Count);
+
                 return token;
             }
             else
             {
+                _logger.LogWarning(
+                    "Login failed. Reason: {Reason}, UserId: {UserId}, UserName: {UserName}",
+                    "InvalidPassword",
+                    user.Id,
+                    user.UserName);
+
                 throw new UnauthorizedAccesException("Kullanıcı adı veya şifre hatalı!");
             }
         }
@@ -66,10 +83,18 @@ namespace blogapp_server.Persistence.Services
                 var roles = await _userManager.GetRolesAsync(user);
                 Token token = _tokenHandler.CreateAccessToken(user, roles);
                 await _userService.UpdateRefreshToken(token.RefreshToken, user, token.Expiration);
+
+                _logger.LogInformation(
+                    "Refresh token login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}",
+                    user.Id,
+                    user.UserName,
+                    roles.Count);
+
                 return token;
             }
             else
             {
+                _logger.LogWarning("Refresh token login failed. Reason: {Reason}", "InvalidOrExpiredRefreshToken");
                 throw new NotFoundException("Kullanıcı bulunumadı!");
             }
         }

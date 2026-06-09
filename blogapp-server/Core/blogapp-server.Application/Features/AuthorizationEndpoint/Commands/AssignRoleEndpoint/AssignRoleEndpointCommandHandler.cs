@@ -1,5 +1,6 @@
 ﻿using blogapp_server.Application.Abstractions.Services;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,15 +12,24 @@ namespace blogapp_server.Application.Features.AuthorizationEndpoint.Commands.Ass
     public class AssignRoleEndpointCommandHandler : IRequestHandler<AssignRoleEndpointCommand, AssignRoleEndpointCommandResponse>
     {
         private readonly IAuthorizationEndpointService _authorizationEndpointService;
+        private readonly ILogger<AssignRoleEndpointCommandHandler> _logger;
 
-        public AssignRoleEndpointCommandHandler(IAuthorizationEndpointService authorizationEndpointService)
+        public AssignRoleEndpointCommandHandler(IAuthorizationEndpointService authorizationEndpointService, ILogger<AssignRoleEndpointCommandHandler> logger)
         {
             _authorizationEndpointService = authorizationEndpointService;
+            _logger = logger;
         }
 
         public async Task<AssignRoleEndpointCommandResponse> Handle(AssignRoleEndpointCommand request, CancellationToken cancellationToken)
         {
             await _authorizationEndpointService.AssignRoleEndpointAsync(request.Roles, request.Menu, request.Code, request.Type);
+
+            _logger.LogInformation(
+                "Roles assigned to endpoint. Menu: {Menu}, PermissionCode: {PermissionCode}, Roles: {Roles}, RoleCount: {RoleCount}",
+                request.Menu,
+                request.Code,
+                request.Roles,
+                request.Roles.Length);
 
             return new AssignRoleEndpointCommandResponse
             {

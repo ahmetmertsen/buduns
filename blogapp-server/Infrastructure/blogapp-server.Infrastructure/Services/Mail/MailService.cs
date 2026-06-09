@@ -3,6 +3,7 @@ using blogapp_server.Application.Helpers;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,11 +18,13 @@ namespace blogapp_server.Infrastructure.Services.Mail
     {
         private readonly IConfiguration _configuration;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<MailService> _logger;
 
-        public MailService(IConfiguration configuration, IUnitOfWork unitOfWork)
+        public MailService(IConfiguration configuration, IUnitOfWork unitOfWork, ILogger<MailService> logger)
         {
             _configuration = configuration;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public Task SendMailAsync(string to, string subject, string content)
@@ -54,7 +57,27 @@ namespace blogapp_server.Infrastructure.Services.Mail
                 DeliveryMethod = SmtpDeliveryMethod.Network
             };
 
-            await smtp.SendMailAsync(mail);
+            try
+            {
+                await smtp.SendMailAsync(mail);
+
+                _logger.LogInformation(
+                    "Mail sent successfully. Subject: {Subject}, RecipientCount: {RecipientCount}, Host: {Host}",
+                    subject,
+                    toes.Length,
+                    host);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "Mail sending failed. Subject: {Subject}, RecipientCount: {RecipientCount}, Host: {Host}",
+                    subject,
+                    toes.Length,
+                    host);
+
+                throw;
+            }
         }
 
         // Şifre Sıfırlama Maili

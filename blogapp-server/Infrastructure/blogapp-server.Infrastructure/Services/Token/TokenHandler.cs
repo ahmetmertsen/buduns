@@ -37,9 +37,10 @@ namespace blogapp_server.Infrastructure.Services.Token
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.UserName ?? ""),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
                 new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName ?? ""),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), //Token Unique Id
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), //Token Unique Id     
             };
             foreach (var role in roles)
             {
