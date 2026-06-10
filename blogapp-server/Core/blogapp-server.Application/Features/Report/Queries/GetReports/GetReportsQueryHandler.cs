@@ -1,46 +1,69 @@
+using AutoMapper;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Domain.Enums;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Report.Queries.GetReports
 {
-    public class GetReportsQueryHandler : IRequestHandler<GetReportsQuery, List<ReportListDto>>
+    public class GetReportsQueryHandler : IRequestHandler<GetReportsQuery, PagedResponse<ReportListDto>>
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public GetReportsQueryHandler(IUnitOfWork unitOfWork)
+        public GetReportsQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
-        public async Task<List<ReportListDto>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<ReportListDto>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
         {
-            var reports = await _unitOfWork.ReportRepository.GetFilteredReportsAsync(request.Status, request.TargetType, request.Page, request.Size);
+            var (reports, totalCount) = await _unitOfWork.ReportRepository.GetFilteredReportGroupsAsync(request.Status, request.TargetType, request.Reason, request.FromDate, request.ToDate, request.Page, request.Size, cancellationToken);
 
-            return reports.Select(r => new ReportListDto
+            var items = reports
+                .GroupBy(report => new
+                {
+                    report.TargetType,
+                    TargetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetUserId
+                })
+                .Select(group =>
+                {
+                    var latestReport = group.OrderByDescending(report => report.CreatedAt).First();
+                    var item = _mapper.Map<ReportListDto>(latestReport);
+
+                    item.TargetPostContentPreview = CreateContentPreview(latestReport.TargetPost?.Content);
+                    item.ReasonCounts = group
+                        .GroupBy(report => report.Reason)
+                        .ToDictionary(reasonGroup => reasonGroup.Key, reasonGroup => reasonGroup.Count());
+                    item.ReportCount = group.Count();
+                    item.FirstReportDate = group.Min(report => report.CreatedAt);
+                    item.LastReportDate = group.Max(report => report.CreatedAt);
+
+                    return item;
+                })
+                .OrderByDescending(item => item.LastReportDate)
+                .ToList();
+
+            return new PagedResponse<ReportListDto>
             {
-                Id = r.Id,
-                ReporterUserId = r.ReporterUserId,
-                ReporterUserName = r.ReporterUser?.UserName,
-                ReporterFullName = r.ReporterUser?.FullName,
-                
-                TargetType = r.TargetType,
-                TargetPostId = r.TargetPostId,
-                TargetPostTitle = r.TargetPost?.Title,
-                
-                TargetUserId = r.TargetUserId,
-                TargetUserName = r.TargetUser?.UserName,
-                TargetUserFullName = r.TargetUser?.FullName,
+                Items = items,
+                Page = request.Page,
+                Size = request.Size,
+                TotalCount = totalCount
+            };
+        }
 
-                Reason = r.Reason,
-                Status = r.Status,
-                CreatedAt = r.CreatedAt,
-            }).ToList();
+        private static string? CreateContentPreview(string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return null;
+            }
+
+            const int previewLength = 160;
+            var normalizedContent = content.Trim();
+            return normalizedContent.Length <= previewLength ? normalizedContent : $"{normalizedContent[..previewLength]}...";
         }
     }
 }

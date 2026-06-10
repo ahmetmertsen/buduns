@@ -17,15 +17,19 @@ namespace blogapp_server.Application.Dtos
         public ReportTargetType TargetType { get; set; }
 
         public int? TargetPostId { get; set; }
-        public string? TargetPostTitle { get; set; }
+        public string? TargetPostContentPreview { get; set; }
 
         public int? TargetUserId { get; set; }
         public string? TargetUserName { get; set; }
         public string? TargetUserFullName { get; set; }
 
         public ReportReason Reason { get; set; }
+        public Dictionary<ReportReason, int> ReasonCounts { get; set; } = new();
         public ReportStatus Status { get; set; }
 
+        public int ReportCount { get; set; }
+        public DateTime FirstReportDate { get; set; }
+        public DateTime LastReportDate { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

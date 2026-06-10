@@ -21,14 +21,16 @@ namespace blogapp_server.Application.Repositories
 
         Task<List<Report>> GetAllByReporterUserIdAsync(int reporterUserId);
 
-        Task<List<Report>> GetAllByTargetPostIdAsync(int postId);
-
-        Task<List<Report>> GetAllByTargetUserIdAsync(int userId);
+        Task<List<Report>> GetReportsForTargetAsync(ReportTargetType targetType, int targetId, CancellationToken cancellationToken = default);
 
         Task<bool> HasPendingPostReportAsync(int reporterUserId, int postId);
 
         Task<bool> HasPendingUserReportAsync(int reporterUserId, int targetUserId);
 
-        Task<List<Report>> GetFilteredReportsAsync(ReportStatus? status, ReportTargetType? targetType, int page, int size);
+        Task<(List<Report> Reports, int TotalCount)> GetFilteredReportGroupsAsync(ReportStatus? status, ReportTargetType? targetType, ReportReason? reason, DateTime? fromDate, DateTime? toDate, int page, int size, CancellationToken cancellationToken = default);
+
+        Task<List<Report>> GetOpenReportsForTargetAsync(ReportTargetType targetType, int targetId, CancellationToken cancellationToken = default);
+
+        Task<int> CountRecentReportsByUserAsync(int reporterUserId, DateTime since, CancellationToken cancellationToken = default);
     }
 }

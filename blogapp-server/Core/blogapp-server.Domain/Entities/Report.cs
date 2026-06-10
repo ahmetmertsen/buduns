@@ -29,5 +29,6 @@ namespace blogapp_server.Domain.Entities
         public Post? TargetPost { get; set; }
         public User? TargetUser { get; set; }
         public User? ReviewedByUser { get; set; }
+        public ICollection<ModerationAction> ModerationActions { get; set; } = new List<ModerationAction>();
     }
 }

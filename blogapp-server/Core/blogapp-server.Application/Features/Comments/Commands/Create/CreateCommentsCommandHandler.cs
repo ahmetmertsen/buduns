@@ -43,7 +43,7 @@ namespace blogapp_server.Application.Features.Comments.Commands.Create
             Notification notification = new()
             {
                 Type = Domain.Enums.NotificationType.POST_COMMENTED,
-                Message = $"{post.Title} başlıklı gönderiniz yorum aldı.",
+                Message = "Paylaşımınız yeni bir yorum aldı.",
                 UserId = post.UserId,
                 CreatedAt = DateTime.UtcNow,
                 isActive = true,

@@ -15,6 +15,8 @@ namespace blogapp_server.Domain.Entities.Identity
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenEndDate { get; set; }
         public DateTime? LastPasswordChangedDate { get; set; }
+        public Enums.UserStatus Status { get; set; } = Enums.UserStatus.Active;
+        public DateTime? SuspendedUntil { get; set; }
 
         public ICollection<Post> Posts { get; set; }
         public ICollection<Notification> Notifications { get; set; }

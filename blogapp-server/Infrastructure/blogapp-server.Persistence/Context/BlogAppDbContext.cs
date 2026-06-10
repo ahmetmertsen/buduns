@@ -24,12 +24,21 @@ namespace blogapp_server.Persistence.Context
         public DbSet<Bookmark> Bookmarks { get; set; }
         public DbSet<Utility> Utilities { get; set; }
         public DbSet<Report> Reports { get; set; }
+        public DbSet<ModerationAction> ModerationActions { get; set; }
         public DbSet<Menu> Menus { get; set; }
         public DbSet<Endpoint> Endpoints { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Post>()
+                .Property(post => post.Status)
+                .HasDefaultValue(blogapp_server.Domain.Enums.PostStatus.Published);
+
+            modelBuilder.Entity<User>()
+                .Property(user => user.Status)
+                .HasDefaultValue(blogapp_server.Domain.Enums.UserStatus.Active);
+
             modelBuilder.Entity<Follower>(entity =>
             {
                 entity.HasOne(f => f.FollowerUser)
@@ -61,6 +70,11 @@ namespace blogapp_server.Persistence.Context
             modelBuilder.Entity<Report>(entity =>
             {
                 entity.HasKey(r => r.Id);
+
+                entity.HasCheckConstraint(
+                    "CK_Reports_Target",
+                    "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL AND \"TargetUserId\" IS NULL) OR " +
+                    "(\"TargetType\" = 1 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NOT NULL)");
 
                 entity.Property(r => r.Description)
                     .HasMaxLength(1000);
@@ -96,8 +110,62 @@ namespace blogapp_server.Persistence.Context
                     r.TargetUserId
                 });
 
+                entity.HasIndex(r => new { r.ReporterUserId, r.TargetPostId })
+                    .IsUnique()
+                    .HasFilter("\"TargetType\" = 0 AND \"Status\" IN (1, 2)");
+
+                entity.HasIndex(r => new { r.ReporterUserId, r.TargetUserId })
+                    .IsUnique()
+                    .HasFilter("\"TargetType\" = 1 AND \"Status\" IN (1, 2)");
+
+                entity.HasIndex(r => new
+                {
+                    r.TargetType,
+                    r.TargetPostId,
+                    r.TargetUserId,
+                    r.Status
+                });
+
                 entity.HasIndex(r => r.Status);
                 entity.HasIndex(r => r.CreatedAt);
+            });
+
+            modelBuilder.Entity<ModerationAction>(entity =>
+            {
+                entity.HasKey(action => action.Id);
+
+                entity.HasCheckConstraint(
+                    "CK_ModerationActions_Target",
+                    "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL) OR " +
+                    "(\"TargetType\" = 1 AND \"TargetUserId\" IS NOT NULL)");
+
+                entity.Property(action => action.Note)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(action => action.Report)
+                    .WithMany(report => report.ModerationActions)
+                    .HasForeignKey(action => action.ReportId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(action => action.ModeratorUser)
+                    .WithMany()
+                    .HasForeignKey(action => action.ModeratorUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(action => action.TargetPost)
+                    .WithMany()
+                    .HasForeignKey(action => action.TargetPostId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(action => action.TargetUser)
+                    .WithMany()
+                    .HasForeignKey(action => action.TargetUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(action => action.ReportId);
+                entity.HasIndex(action => action.ModeratorUserId);
+                entity.HasIndex(action => new { action.TargetType, action.TargetPostId, action.TargetUserId });
+                entity.HasIndex(action => action.CreatedAt);
             });
                 
 

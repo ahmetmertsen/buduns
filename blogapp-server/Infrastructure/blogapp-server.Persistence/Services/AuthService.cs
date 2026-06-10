@@ -48,9 +48,34 @@ namespace blogapp_server.Persistence.Services
                     throw new UnauthorizedAccesException("Kullanıcı adı veya şifre hatalı!");
                 }
             }
+
+            if (user.Status == Domain.Enums.UserStatus.Suspended && user.SuspendedUntil.HasValue && user.SuspendedUntil.Value <= DateTime.UtcNow)
+            {
+                user.Status = Domain.Enums.UserStatus.Active;
+                user.SuspendedUntil = null;
+                user.LockoutEnd = null;
+                var updateResult = await _userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                {
+                    throw new UnauthorizedAccesException("Kullanıcı hesabı güncellenemedi.");
+                }
+            }
+
             var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
             if (result.Succeeded)
             {
+                if (user.Status == Domain.Enums.UserStatus.Banned)
+                {
+                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserBanned", user.Id);
+                    throw new UnauthorizedAccesException("Bu hesap platformdan yasaklanmıştır.");
+                }
+
+                if (user.Status == Domain.Enums.UserStatus.Suspended)
+                {
+                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserSuspended", user.Id);
+                    throw new UnauthorizedAccesException("Bu hesap geçici olarak askıya alınmıştır.");
+                }
+
                 var roles = await _userManager.GetRolesAsync(user);
                 Token token = _tokenHandler.CreateAccessToken(user, roles);
                 await _userService.UpdateRefreshToken(token.RefreshToken, user, token.Expiration);
@@ -65,6 +90,18 @@ namespace blogapp_server.Persistence.Services
             }
             else
             {
+                if (user.Status == Domain.Enums.UserStatus.Banned)
+                {
+                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserBanned", user.Id);
+                    throw new UnauthorizedAccesException("Bu hesap platformdan yasaklanmıştır.");
+                }
+
+                if (user.Status == Domain.Enums.UserStatus.Suspended)
+                {
+                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserSuspended", user.Id);
+                    throw new UnauthorizedAccesException("Bu hesap geçici olarak askıya alınmıştır.");
+                }
+
                 _logger.LogWarning(
                     "Login failed. Reason: {Reason}, UserId: {UserId}, UserName: {UserName}",
                     "InvalidPassword",
@@ -80,6 +117,30 @@ namespace blogapp_server.Persistence.Services
             User? user = await _userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
             if (user != null && user?.RefreshTokenEndDate > DateTime.UtcNow)
             {
+                if (user.Status == Domain.Enums.UserStatus.Banned)
+                {
+                    _logger.LogWarning("Refresh token login blocked. Reason: {Reason}, UserId: {UserId}", "UserBanned", user.Id);
+                    throw new UnauthorizedAccesException("Bu hesap platformdan yasaklanmıştır.");
+                }
+
+                if (user.Status == Domain.Enums.UserStatus.Suspended)
+                {
+                    if (!user.SuspendedUntil.HasValue || user.SuspendedUntil.Value > DateTime.UtcNow)
+                    {
+                        _logger.LogWarning("Refresh token login blocked. Reason: {Reason}, UserId: {UserId}", "UserSuspended", user.Id);
+                        throw new UnauthorizedAccesException("Bu hesap geçici olarak askıya alınmıştır.");
+                    }
+
+                    user.Status = Domain.Enums.UserStatus.Active;
+                    user.SuspendedUntil = null;
+                    user.LockoutEnd = null;
+                    var updateResult = await _userManager.UpdateAsync(user);
+                    if (!updateResult.Succeeded)
+                    {
+                        throw new UnauthorizedAccesException("Kullanıcı hesabı güncellenemedi.");
+                    }
+                }
+
                 var roles = await _userManager.GetRolesAsync(user);
                 Token token = _tokenHandler.CreateAccessToken(user, roles);
                 await _userService.UpdateRefreshToken(token.RefreshToken, user, token.Expiration);

@@ -9,8 +9,8 @@ namespace blogapp_server.Domain.Enums
     public enum ReportStatus
     {
         Pending = 1,
-        Reviewed,
-        Rejected,
-        ActionTaken
+        InReview,
+        ResolvedNoViolation,
+        ResolvedActionTaken
     }
 }

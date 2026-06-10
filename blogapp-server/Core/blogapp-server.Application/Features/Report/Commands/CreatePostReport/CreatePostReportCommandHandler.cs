@@ -15,6 +15,7 @@ namespace blogapp_server.Application.Features.Report.Commands.CreatePostReport
 {
     public class CreatePostReportCommandHandler : IRequestHandler<CreatePostReportCommand, CreatePostReportCommandResponse>
     {
+        private const int DailyReportLimit = 10;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<CreatePostReportCommandHandler> _logger;
 
@@ -30,6 +31,22 @@ namespace blogapp_server.Application.Features.Report.Commands.CreatePostReport
             if (post == null)
             {
                 throw new NotFoundException("Gönderi bulunamadı.");
+            }
+
+            if (post.UserId == request.UserId)
+            {
+                throw new BadRequestException("Kendi gönderinizi şikayet edemezsiniz.");
+            }
+
+            if (post.Status != PostStatus.Published || !post.isPublished || post.isDeleted)
+            {
+                throw new BadRequestException("Bu gönderi şikayet edilmeye uygun değil.");
+            }
+
+            var recentReportCount = await _unitOfWork.ReportRepository.CountRecentReportsByUserAsync(request.UserId, DateTime.UtcNow.AddHours(-24), cancellationToken);
+            if (recentReportCount >= DailyReportLimit)
+            {
+                throw new BadRequestException("24 saat içinde en fazla 10 şikayet oluşturabilirsiniz.");
             }
                 
             bool alreadyReported = await _unitOfWork.ReportRepository.HasPendingPostReportAsync(request.UserId, request.PostId);

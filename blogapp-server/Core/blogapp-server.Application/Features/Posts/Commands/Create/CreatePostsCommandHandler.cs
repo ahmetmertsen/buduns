@@ -48,6 +48,7 @@ namespace blogapp_server.Application.Features.Posts.Commands.Create
             post.CreatedAt = DateTime.UtcNow;
             post.isActive = true;
             post.isDeleted = false;
+            post.Status = Domain.Enums.PostStatus.Published;
             post.Tags = tags;
 
  

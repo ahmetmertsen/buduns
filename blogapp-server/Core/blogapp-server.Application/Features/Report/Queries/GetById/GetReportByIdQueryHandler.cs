@@ -1,22 +1,21 @@
+using AutoMapper;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Domain.Enums;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Report.Queries.GetById
 {
     public class GetReportByIdQueryHandler : IRequestHandler<GetReportByIdQuery, ReportDetailDto>
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public GetReportByIdQueryHandler(IUnitOfWork unitOfWork)
+        public GetReportByIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         public async Task<ReportDetailDto> Handle(GetReportByIdQuery request, CancellationToken cancellationToken)
@@ -24,41 +23,25 @@ namespace blogapp_server.Application.Features.Report.Queries.GetById
             var report = await _unitOfWork.ReportRepository.GetByIdWithDetailsAsync(request.ReportId);
             if (report == null)
             {
-                throw new NotFoundException("�ikayet bulunamad�.");
+                throw new NotFoundException("Şikayet bulunamadı.");
             }
 
-            return new ReportDetailDto
+            var targetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetUserId;
+            if (!targetId.HasValue)
             {
-                Id = report.Id,
+                throw new BadRequestException("Şikayet hedefi bulunamadı.");
+            }
 
-                ReporterUserId = report.ReporterUserId,
-                ReporterUserName = report.ReporterUser?.UserName,
-                ReporterFullName = report.ReporterUser?.FullName,
-                ReporterEmail = report.ReporterUser?.Email,
+            var relatedReports = await _unitOfWork.ReportRepository.GetReportsForTargetAsync(report.TargetType, targetId.Value, cancellationToken);
 
-                TargetType = report.TargetType,
+            var response = _mapper.Map<ReportDetailDto>(report);
+            response.ReportCount = relatedReports.Count;
+            response.RelatedReports = _mapper.Map<List<RelatedReportDto>>(relatedReports);
+            response.ModerationActions = _mapper.Map<List<ModerationActionDto>>(relatedReports
+                    .SelectMany(relatedReport => relatedReport.ModerationActions)
+                    .OrderByDescending(action => action.CreatedAt));
 
-                TargetPostId = report.TargetPostId,
-                TargetPostTitle = report.TargetPost?.Title,
-                TargetPostContent = report.TargetPost?.Content,
-
-                TargetUserId = report.TargetUserId,
-                TargetUserName = report.TargetUser?.UserName,
-                TargetUserFullName = report.TargetUser?.FullName,
-                TargetUserEmail = report.TargetUser?.Email,
-
-                Reason = report.Reason,
-                Description = report.Description,
-
-                Status = report.Status,
-
-                ReviewedByUserId = report.ReviewedByUserId,
-                ReviewedByUserName = report.ReviewedByUser?.UserName,
-
-                CreatedDate = report.CreatedAt,
-                ReviewedDate = report.ReviewedDate,
-                ReviewNote = report.ReviewNote
-            };
+            return response;
         }
     }
 }

@@ -19,7 +19,6 @@ namespace blogapp_server.Application.Dtos
         public ReportTargetType TargetType { get; set; }
 
         public int? TargetPostId { get; set; }
-        public string? TargetPostTitle { get; set; }
         public string? TargetPostContent { get; set; }
 
         public int? TargetUserId { get; set; }
@@ -39,5 +38,8 @@ namespace blogapp_server.Application.Dtos
         public DateTime? ReviewedDate { get; set; }
 
         public string? ReviewNote { get; set; }
+        public int ReportCount { get; set; }
+        public List<RelatedReportDto> RelatedReports { get; set; } = new();
+        public List<ModerationActionDto> ModerationActions { get; set; } = new();
     }
 }

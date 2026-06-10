@@ -39,7 +39,7 @@ namespace blogapp_server.Application.Features.Likes.Commands.Create
             Notification notification = new()
             {
                 Type = Domain.Enums.NotificationType.POST_LIKED,
-                Message = $"{post.Title} başlıklı göndederiniz beğeni aldı.",
+                Message = "Paylaşımınız yeni bir beğeni aldı.",
                 UserId = post.UserId,
                 CreatedAt = DateTime.UtcNow,
                 isActive = true,

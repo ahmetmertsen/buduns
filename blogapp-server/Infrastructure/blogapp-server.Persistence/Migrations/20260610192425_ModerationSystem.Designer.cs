@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using blogapp_server.Persistence.Context;
@@ -11,9 +12,10 @@ using blogapp_server.Persistence.Context;
 namespace blogapp_server.Persistence.Migrations
 {
     [DbContext(typeof(BlogAppDbContext))]
-    partial class BlogAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260610192425_ModerationSystem")]
+    partial class ModerationSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -572,14 +574,6 @@ namespace blogapp_server.Persistence.Migrations
                     b.HasIndex("TargetPostId");
 
                     b.HasIndex("TargetUserId");
-
-                    b.HasIndex("ReporterUserId", "TargetPostId")
-                        .IsUnique()
-                        .HasFilter("\"TargetType\" = 0 AND \"Status\" IN (1, 2)");
-
-                    b.HasIndex("ReporterUserId", "TargetUserId")
-                        .IsUnique()
-                        .HasFilter("\"TargetType\" = 1 AND \"Status\" IN (1, 2)");
 
                     b.HasIndex("ReporterUserId", "TargetType", "TargetPostId", "TargetUserId");
 

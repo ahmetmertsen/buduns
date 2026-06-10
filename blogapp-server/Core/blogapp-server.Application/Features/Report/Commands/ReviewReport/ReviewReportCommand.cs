@@ -17,6 +17,8 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
 
         public int ReportId { get; set; }
         public ReportStatus Status { get; set; }
+        public ModerationActionType ActionType { get; set; }
+        public int? SuspensionDays { get; set; }
         public string? ReviewNote { get; set; }
     }
 }

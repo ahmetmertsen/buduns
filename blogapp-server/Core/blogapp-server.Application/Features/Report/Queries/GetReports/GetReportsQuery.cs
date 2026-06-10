@@ -9,10 +9,13 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Report.Queries.GetReports
 {
-    public class GetReportsQuery : IRequest<List<ReportListDto>>
+    public class GetReportsQuery : IRequest<PagedResponse<ReportListDto>>
     {
         public ReportStatus? Status { get; set; }
         public ReportTargetType? TargetType { get; set; }
+        public ReportReason? Reason { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
 
         public int Page { get; set; } = 1;
         public int Size { get; set; } = 20;

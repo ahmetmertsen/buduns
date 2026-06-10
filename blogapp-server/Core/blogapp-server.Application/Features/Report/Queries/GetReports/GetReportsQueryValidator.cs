@@ -14,6 +14,15 @@ namespace blogapp_server.Application.Features.Report.Queries.GetReports
                 .IsInEnum().WithMessage("Rapor hedef tipi geçersiz.")
                 .When(x => x.TargetType.HasValue);
 
+            RuleFor(x => x.Reason)
+                .IsInEnum().WithMessage("Rapor sebebi geçersiz.")
+                .When(x => x.Reason.HasValue);
+
+            RuleFor(x => x.ToDate)
+                .GreaterThanOrEqualTo(x => x.FromDate!.Value)
+                .WithMessage("Bitiş tarihi başlangıç tarihinden önce olamaz.")
+                .When(x => x.FromDate.HasValue && x.ToDate.HasValue);
+
             RuleFor(x => x.Page)
                 .GreaterThanOrEqualTo(1).WithMessage("Page 1 veya daha büyük olmalıdır.");
 

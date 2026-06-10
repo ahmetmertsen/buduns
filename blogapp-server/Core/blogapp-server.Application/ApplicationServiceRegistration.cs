@@ -23,6 +23,7 @@ namespace blogapp_server.Application
                 cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
                 cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
                 cfg.AddOpenBehavior(typeof(CurrentUserBehavior<,>));
+                cfg.AddOpenBehavior(typeof(AccountStatusBehavior<,>));
             });
 
 

@@ -1,5 +1,6 @@
 ﻿using blogapp_server.Domain.Entities.Common;
 using blogapp_server.Domain.Entities.Identity;
+using blogapp_server.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,10 +12,9 @@ namespace blogapp_server.Domain.Entities
     public class Post : BaseEntity
     {
         public int Id { get; set; }
-        public string Title { get; set; }
         public string Content { get; set; }
-        public string CoverImgUrl { get; set; }
         public bool isPublished { get; set; }
+        public PostStatus Status { get; set; } = PostStatus.Published;
 
         public int UserId { get; set; }
         public User User { get; set; }

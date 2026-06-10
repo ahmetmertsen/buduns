@@ -16,6 +16,7 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
 {
     public class CreateUserReportCommandHandler : IRequestHandler<CreateUserReportCommand, CreateUserReportCommandResponse>
     {
+        private const int DailyReportLimit = 10;
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<CreateUserReportCommandHandler> _logger;
@@ -38,6 +39,17 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
             if (targetUser == null)
             {
                 throw new NotFoundException("Şikayet edilen kullanıcı bulunamadı.");
+            }
+
+            if (targetUser.Status == UserStatus.Banned)
+            {
+                throw new BadRequestException("Bu kullanıcı zaten platformdan yasaklanmış.");
+            }
+
+            var recentReportCount = await _unitOfWork.ReportRepository.CountRecentReportsByUserAsync(request.UserId, DateTime.UtcNow.AddHours(-24), cancellationToken);
+            if (recentReportCount >= DailyReportLimit)
+            {
+                throw new BadRequestException("24 saat içinde en fazla 10 şikayet oluşturabilirsiniz.");
             }
                 
 

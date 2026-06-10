@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Notifications.Commands.Delete
 {
-    public class DeleteNotificationCommand : IRequest<DeleteNotificationsCommandResponse>, ICurrentUserRequest
+    public class DeleteNotificationCommand : IRequest<DeleteNotificationCommandResponse>, ICurrentUserRequest
     {
         public int Id { get; set; }
 

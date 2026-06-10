@@ -9,16 +9,16 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Notifications.Commands.Delete
 {
-    public class DeleteNotificationsCommandHandler : IRequestHandler<DeleteNotificationCommand, DeleteNotificationsCommandResponse>
+    public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificationCommand, DeleteNotificationCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
 
-        public DeleteNotificationsCommandHandler(IUnitOfWork unitOfWork)
+        public DeleteNotificationCommandHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<DeleteNotificationsCommandResponse> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
+        public async Task<DeleteNotificationCommandResponse> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
         {
             var notification = await _unitOfWork.NotificationRepository.GetByIdAsync(request.Id);
             if (notification == null)
@@ -32,7 +32,7 @@ namespace blogapp_server.Application.Features.Notifications.Commands.Delete
 
             await _unitOfWork.NotificationRepository.DeleteAsync(request.Id);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return new DeleteNotificationsCommandResponse(true, "Bildirim başarıyla silinmiştir.");
+            return new DeleteNotificationCommandResponse(true, "Bildirim başarıyla silinmiştir.");
         }
     }
 }

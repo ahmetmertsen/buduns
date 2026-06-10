@@ -11,5 +11,11 @@ namespace blogapp_server.Domain.Enums
         NEW_FOLLOWER,
         POST_LIKED,
         POST_COMMENTED,
+        REPORT_RESOLVED,
+        MODERATION_WARNING,
+        ACCOUNT_SUSPENDED,
+        ACCOUNT_BANNED,
+        POST_HIDDEN,
+        POST_REMOVED,
     }
 }

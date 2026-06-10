@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Notifications.Commands.Delete
 {
-    public record DeleteNotificationsCommandResponse(bool Succeeded,string Message)
+    public record DeleteNotificationCommandResponse(bool Succeeded,string Message)
     {
     }
 }

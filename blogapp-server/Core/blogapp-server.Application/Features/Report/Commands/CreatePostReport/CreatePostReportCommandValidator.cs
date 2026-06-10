@@ -1,3 +1,4 @@
+using blogapp_server.Domain.Enums;
 using FluentValidation;
 
 namespace blogapp_server.Application.Features.Report.Commands.CreatePostReport
@@ -14,6 +15,10 @@ namespace blogapp_server.Application.Features.Report.Commands.CreatePostReport
 
             RuleFor(x => x.Description)
                 .MaximumLength(1000).WithMessage("Açıklama en fazla 1000 karakter olabilir.");
+
+            RuleFor(x => x.Description)
+                .NotEmpty().WithMessage("Diğer sebebi seçildiğinde açıklama zorunludur.")
+                .When(x => x.Reason == ReportReason.Other);
         }
     }
 }

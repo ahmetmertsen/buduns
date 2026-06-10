@@ -1,5 +1,6 @@
 ﻿using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using System;
@@ -23,7 +24,7 @@ namespace blogapp_server.Application.Features.Posts.Commands.Delete
 
         public async Task<DeletePostsCommandResponse> Handle(DeletePostsCommand request, CancellationToken cancellationToken)
         {
-            var post = await _unitOfWork.PostRepository.GetByIdAsync(request.Id);
+            var post = await _unitOfWork.PostRepository.GetByIdWithTagsAsync(request.Id);
             if (post == null)
             {
                 throw new NotFoundException("Post bulunamadı!");
@@ -33,7 +34,12 @@ namespace blogapp_server.Application.Features.Posts.Commands.Delete
                 throw new UnauthorizedAccesException("Bu postu silme yetkiniz yok.");
             }
 
-            await _unitOfWork.PostRepository.DeleteAsync(request.Id);
+            post.Status = PostStatus.DeletedByOwner;
+            post.isPublished = false;
+            post.isActive = false;
+            post.isDeleted = true;
+            post.UpdateAt = DateTime.UtcNow;
+            _unitOfWork.PostRepository.Update(post);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(

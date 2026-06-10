@@ -1,88 +1,92 @@
-﻿using blogapp_server.Application.Repositories;
-using blogapp_server.Application.Repositories.Common;
+using blogapp_server.Application.Dtos;
+using blogapp_server.Application.Repositories;
 using blogapp_server.Application.Features.Posts.Queries.GetDailyTopPosts;
 using blogapp_server.Domain.Entities;
+using blogapp_server.Domain.Enums;
 using blogapp_server.Persistence.Context;
 using blogapp_server.Persistence.Repositories.Common;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using blogapp_server.Application.Dtos;
 
 namespace blogapp_server.Persistence.Repositories
 {
-    public class PostRepository : Repository<Post> , IPostRepository
+    public class PostRepository : Repository<Post>, IPostRepository
     {
         private readonly BlogAppDbContext _context;
 
-        public PostRepository(BlogAppDbContext context) : base(context) { _context = context; }
+        public PostRepository(BlogAppDbContext context) : base(context)
+        {
+            _context = context;
+        }
 
-        
-        public override async Task<List<Post>> GetAllAsync() =>
-            await _context.Posts
-                .Include(p => p.Tags)
-                .Include(p => p.Likes)
-                .Include(p => p.Comments)
-                .Include(p => p.Bookmarks)
+        public override Task<List<Post>> GetAllAsync() =>
+            VisiblePosts()
+                .Include(post => post.Tags)
+                .Include(post => post.Likes)
+                .Include(post => post.Comments)
+                .Include(post => post.Bookmarks)
                 .ToListAsync();
-        public override async Task<Post?> GetByIdAsync(int id) =>
-            await _context.Posts
-                .Include(p => p.Tags)
-                .Include(p => p.Likes)
-                .Include(p => p.Comments)
-                .Include(p => p.Bookmarks)
-                .FirstOrDefaultAsync(p => p.Id == id);
 
-        public async Task<List<Post?>> GetAllByTagIdAsync(int TagId) => await _context.Posts
-            .Include(p => p.Tags)
-            .Where(p => p.Tags.Any(t => t.Id == TagId))
-            .ToListAsync();
+        public override Task<Post?> GetByIdAsync(int id) =>
+            VisiblePosts()
+                .Include(post => post.Tags)
+                .Include(post => post.Likes)
+                .Include(post => post.Comments)
+                .Include(post => post.Bookmarks)
+                .FirstOrDefaultAsync(post => post.Id == id);
 
-        public async Task<Post?> GetByIdWithTagsAsync(int id) =>
-            await _context.Posts
-                .Include(p => p.Tags)
-                .FirstOrDefaultAsync(p => p.Id == id);
+        public Task<List<Post?>> GetAllByTagIdAsync(int tagId) =>
+            VisiblePosts()
+                .Include(post => post.Tags)
+                .Where(post => post.Tags.Any(tag => tag.Id == tagId))
+                .Cast<Post?>()
+                .ToListAsync();
+
+        public Task<Post?> GetByIdWithTagsAsync(int id) =>
+            _context.Posts
+                .Where(post =>
+                    post.Status == PostStatus.Published &&
+                    post.isActive &&
+                    !post.isDeleted)
+                .Include(post => post.Tags)
+                .FirstOrDefaultAsync(post => post.Id == id);
 
         public async Task<List<TopPostDto>> GetDailyTopPostsAsync(DateTime startDateUtc, DateTime endDateUtc, int limit, CancellationToken cancellationToken = default)
         {
             var safeLimit = Math.Clamp(limit, 1, 100);
 
-            return await _context.Posts
+            return await VisiblePosts()
                 .AsNoTracking()
-                .Where(p => p.isPublished && p.isActive && !p.isDeleted)
-                .Select(p => new
+                .Where(post => post.isPublished)
+                .Select(post => new
                 {
-                    Post = p,
-                    DailyLikeCount = p.Likes.Count(l => l.CreatedAt >= startDateUtc && l.CreatedAt < endDateUtc && l.isActive && !l.isDeleted),
-                    DailyCommentCount = p.Comments.Count(c => c.CreatedAt >= startDateUtc && c.CreatedAt < endDateUtc && c.isActive && !c.isDeleted),
-                    LikeCount = p.Likes.Count(l => l.isActive && !l.isDeleted),
-                    CommentCount = p.Comments.Count(c => c.isActive && !c.isDeleted),
-                    BookmarkCount = p.Bookmarks.Count(b => b.isActive && !b.isDeleted)
+                    Post = post,
+                    DailyLikeCount = post.Likes.Count(like => like.CreatedAt >= startDateUtc && like.CreatedAt < endDateUtc && like.isActive && !like.isDeleted),
+                    DailyCommentCount = post.Comments.Count(comment => comment.CreatedAt >= startDateUtc && comment.CreatedAt < endDateUtc && comment.isActive && !comment.isDeleted),
+                    LikeCount = post.Likes.Count(like => like.isActive && !like.isDeleted),
+                    CommentCount = post.Comments.Count(comment => comment.isActive && !comment.isDeleted),
+                    BookmarkCount = post.Bookmarks.Count(bookmark => bookmark.isActive && !bookmark.isDeleted)
                 })
-                .Where(x => x.DailyLikeCount > 0 || x.DailyCommentCount > 0)
-                .OrderByDescending(x => (x.DailyLikeCount * 0.4) + (x.DailyCommentCount * 0.6))
-                .ThenByDescending(x => x.DailyCommentCount)
-                .ThenByDescending(x => x.DailyLikeCount)
-                .ThenByDescending(x => x.Post.CreatedAt)
+                .Where(item => item.DailyLikeCount > 0 || item.DailyCommentCount > 0)
+                .OrderByDescending(item => (item.DailyLikeCount * 0.4) + (item.DailyCommentCount * 0.6))
+                .ThenByDescending(item => item.DailyCommentCount)
+                .ThenByDescending(item => item.DailyLikeCount)
+                .ThenByDescending(item => item.Post.CreatedAt)
                 .Take(safeLimit)
-                .Select(x => new TopPostDto
+                .Select(item => new TopPostDto
                 {
-                    PostId = x.Post.Id,
-                    Title = x.Post.Title,
-                    Content = x.Post.Content,
-                    CoverImgUrl = x.Post.CoverImgUrl,
-                    UserId = x.Post.UserId,
-                    DailyLikeCount = x.DailyLikeCount,
-                    DailyCommentCount = x.DailyCommentCount,
-                    LikeCount = x.LikeCount,
-                    CommentCount = x.CommentCount,
-                    BookmarkCount = x.BookmarkCount,
-                    Score = (x.DailyLikeCount * 0.4) + (x.DailyCommentCount * 0.6)
+                    PostId = item.Post.Id,
+                    Content = item.Post.Content,
+                    UserId = item.Post.UserId,
+                    DailyLikeCount = item.DailyLikeCount,
+                    DailyCommentCount = item.DailyCommentCount,
+                    LikeCount = item.LikeCount,
+                    CommentCount = item.CommentCount,
+                    BookmarkCount = item.BookmarkCount,
+                    Score = (item.DailyLikeCount * 0.4) + (item.DailyCommentCount * 0.6)
                 })
                 .ToListAsync(cancellationToken);
         }
+
+        private IQueryable<Post> VisiblePosts() => _context.Posts.Where(post => post.Status == PostStatus.Published && post.isPublished && post.isActive && !post.isDeleted);
     }
 }
