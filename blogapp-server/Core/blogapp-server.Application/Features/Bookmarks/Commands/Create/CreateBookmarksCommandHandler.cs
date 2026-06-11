@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using MediatR;
@@ -23,14 +24,25 @@ namespace blogapp_server.Application.Features.Bookmarks.Commands.Create
 
         public async Task<CreateBookmarksCommandResponse> Handle(CreateBookmarksCommand request, CancellationToken cancellationToken)
         {
+            var post = await _unitOfWork.PostRepository.GetByIdAsync(request.PostId);
+            if (post == null)
+            {
+                throw new NotFoundException("Kaydedilecek paylaşım bulunamadı.");
+            }
+
             var bookmark = _mapper.Map<Bookmark>(request);
             bookmark.isDeleted = false;
             bookmark.CreatedAt = DateTime.UtcNow;
             bookmark.isActive = true;
 
-            await _unitOfWork.BookmarkRepository.AddAsync(bookmark);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return new CreateBookmarksCommandResponse(Succeeded: true, Message: "Yer işareti başarıyla eklenmiştir.");
+            var result = await _unitOfWork.BookmarkRepository.CreateIfNotExistsAsync(bookmark, cancellationToken);
+            var message = result.Created ? "Yer işareti başarıyla eklendi." : "Paylaşım zaten yer işaretlerinizde bulunuyor.";
+
+            return new CreateBookmarksCommandResponse(
+                Succeeded: true,
+                Message: message,
+                BookmarkId: result.Bookmark.Id,
+                AlreadyBookmarked: !result.Created);
         }
     }
 }

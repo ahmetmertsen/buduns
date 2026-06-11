@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Bookmarks.Commands.Create
 {
-    public record CreateBookmarksCommandResponse(bool Succeeded, string Message)
+    public record CreateBookmarksCommandResponse(bool Succeeded, string Message, int BookmarkId, bool AlreadyBookmarked)
     {
     }
 }

@@ -78,6 +78,13 @@ namespace blogapp_server.Persistence.Context
                 entity.HasIndex(session => session.ExpiresAt);
             });
 
+            modelBuilder.Entity<Bookmark>(entity =>
+            {
+                entity.HasIndex(bookmark => new { bookmark.UserId, bookmark.PostId })
+                    .IsUnique()
+                    .HasDatabaseName("UX_Bookmarks_UserId_PostId");
+            });
+
             modelBuilder.Entity<Follower>(entity =>
             {
                 entity.HasOne(f => f.FollowerUser)

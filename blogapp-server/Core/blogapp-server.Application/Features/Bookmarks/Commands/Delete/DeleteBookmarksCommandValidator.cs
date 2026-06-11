@@ -6,8 +6,8 @@ namespace blogapp_server.Application.Features.Bookmarks.Commands.Delete
     {
         public DeleteBookmarksCommandValidator()
         {
-            RuleFor(x => x.Id)
-                .GreaterThan(0).WithMessage("Id 0'dan büyük olmalıdır.");
+            RuleFor(command => command.PostId)
+                .GreaterThan(0).WithMessage("Post Id 0'dan büyük olmalıdır.");
         }
     }
 }

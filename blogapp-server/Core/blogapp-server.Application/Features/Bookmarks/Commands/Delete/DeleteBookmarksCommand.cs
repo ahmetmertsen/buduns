@@ -11,7 +11,7 @@ namespace blogapp_server.Application.Features.Bookmarks.Commands.Delete
 {
     public class DeleteBookmarksCommand : IRequest<DeleteBookmarksCommandResponse>, ICurrentUserRequest
     {
-        public int Id { get; set; }
+        public int PostId { get; set; }
 
         [JsonIgnore]
         public int UserId { get; set; }

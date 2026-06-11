@@ -15,7 +15,6 @@ namespace blogapp_server.Application.Mapping
         public BookmarkProfile()
         {
             CreateMap<CreateBookmarksCommand, Bookmark>();
-            CreateMap<Bookmark, BookmarkDto>();
         }
     }
 }
