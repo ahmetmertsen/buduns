@@ -403,6 +403,9 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 **/.ionide/
 
+# Local application secrets
+Presentation/blogapp-server.WebAPI/appsettings.Local.json
+
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 

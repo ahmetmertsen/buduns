@@ -20,7 +20,7 @@ namespace blogapp_server.Application.Features.Auth.RefreshTokenLogin
 
         public async Task<RefreshTokenLoginCommandResponse> Handle(RefreshTokenLoginCommand request, CancellationToken cancellationToken)
         {
-            Token token = await _authService.RefreshTokenLoginAsync(request.RefreshToken);
+            Token token = await _authService.RefreshTokenLoginAsync(request.RefreshToken, cancellationToken);
             return new RefreshTokenLoginCommandResponse { Token = token };
         }
     }

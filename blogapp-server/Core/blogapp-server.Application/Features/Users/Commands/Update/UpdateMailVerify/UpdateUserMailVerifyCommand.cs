@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Users.Commands.Update.UpdateMailVerify
 {
-    public class UpdateUserMailVerifyCommand : IRequest<UpdateUserMailVerifyCommandResponse>, ICurrentUserRequest
+    public class UpdateUserMailVerifyCommand : IRequest<UpdateUserMailVerifyCommandResponse>, ICurrentUserRequest, IAllowUnverifiedEmail
     {
         [JsonIgnore]
         public int UserId { get; set; }

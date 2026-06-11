@@ -1,9 +1,12 @@
-using blogapp_server.Application;
+Ôªøusing blogapp_server.Application;
 using blogapp_server.Infrastructure;
+using blogapp_server.Application.Abstractions.Services;
 using blogapp_server.Persistence;
 using blogapp_server.WebAPI.Configurations.Serilog.ColumnWriters;
+using blogapp_server.WebAPI.Configurations.RateLimiting;
 using blogapp_server.WebAPI.Filters;
 using blogapp_server.WebAPI.Middlewares;
+using blogapp_server.WebAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -23,6 +26,7 @@ namespace blogapp_server.WebAPI
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
             // Add services to the container.
 
@@ -30,6 +34,9 @@ namespace blogapp_server.WebAPI
             {
                 options.Filters.Add<RolePermissionFilter>();
             });
+            builder.Services.AddScoped<IClientContext, HttpClientContext>();
+            builder.Services.Configure<SensitiveEndpointRateLimitOptions>(
+                builder.Configuration.GetSection("SensitiveEndpointRateLimit"));
             
             #region CORS
             builder.Services.AddCors(options =>
@@ -102,7 +109,7 @@ namespace blogapp_server.WebAPI
                     Scheme = "bearer",
                     BearerFormat = "JWT",
                     In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-                    Description = "JWT Authorization header kullan˝m˝: token"
+                    Description = "JWT Authorization header kullanƒ±mƒ±: token"
                 });
 
                 c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement()
@@ -137,18 +144,49 @@ namespace blogapp_server.WebAPI
                 {
                     options.TokenValidationParameters = new()
                     {
-                        // Dorulamas˝ gereken deerler
-                        ValidateAudience = true, //Olu˛turulacak token deerini kimlerin/hangi originlerin/sitelerin kullan˝c˝˝n˝ belirlediimiz deerdir.
-                        ValidateIssuer = true, // Olu˛turulacak token deerini kimin da˝tt˝n˝ ifade edeceimiz alan˝d˝r.
-                        ValidateLifetime = true, //Olu˛turulan token deerinin s¸resini kontrol edecek olan dorulamad˝r.
-                        ValidateIssuerSigningKey = true, //‹retilecek token deerinin uygulamam˝za ait bir deer olduunu ifade eden security key verisinin dorulanmas˝d˝r.
+                        // Doƒürulamasƒ± gereken deƒüerler
+                        ValidateAudience = true, //Olu≈üturulacak token deƒüerini kimlerin/hangi originlerin/sitelerin kullanƒ±cƒ±ƒüƒ±nƒ± belirlediƒüimiz deƒüerdir.
+                        ValidateIssuer = true, // Olu≈üturulacak token deƒüerini kimin daƒüƒ±ttƒ±nƒ± ifade edeceƒüimiz alanƒ±dƒ±r.
+                        ValidateLifetime = true, //Olu≈üturulan token deƒüerinin s√ºresini kontrol edecek olan doƒürulamadƒ±r.
+                        ValidateIssuerSigningKey = true, //√úretilecek token deƒüerinin uygulamamƒ±za ait bir deƒüer olduƒüunu ifade eden security key verisinin doƒürulanmasƒ±dƒ±r.
 
                         ValidAudience = builder.Configuration["Token:Audience"],
                         ValidIssuer = builder.Configuration["Token:Issuer"],
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Token:SecurityKey"])),
-                        NameClaimType = ClaimTypes.Name, //Jwt ¸zerinden gelen Name claimine kar˛˝l˝k gelen deeri User.Identity.Name propertysinden elde edilir.
+                        NameClaimType = ClaimTypes.Name, //Jwt √ºzerinden gelen Name claimine kar≈üƒ±lƒ±k gelen deƒüeri User.Identity.Name propertysinden elde edilir.
                         RoleClaimType = ClaimTypes.Role,
                         ClockSkew = TimeSpan.FromMinutes(1)
+                    };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = async context =>
+                        {
+                            var userIdValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                                ?? context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                                ?? context.Principal?.FindFirst("sub")?.Value;
+                            var sessionIdValue = context.Principal?.FindFirst("sid")?.Value
+                                ?? context.Principal?.FindFirst(ClaimTypes.Sid)?.Value;
+
+                            if (!int.TryParse(userIdValue, out var userId) ||
+                                !Guid.TryParse(sessionIdValue, out var sessionId))
+                            {
+                                context.Fail("Ge√ßerli kullanƒ±cƒ± veya oturum bilgisi bulunamadƒ±.");
+                                return;
+                            }
+
+                            var authSessionService = context.HttpContext.RequestServices
+                                .GetRequiredService<IAuthSessionService>();
+                            var isActive = await authSessionService.IsSessionActiveAsync(
+                                userId,
+                                sessionId,
+                                context.HttpContext.RequestAborted);
+
+                            if (!isActive)
+                            {
+                                context.Fail("Oturum ge√ßersiz veya s√ºresi dolmu≈ü.");
+                            }
+                        }
                     };
                 });
 
@@ -200,6 +238,8 @@ namespace blogapp_server.WebAPI
             app.UseSerilogRequestLogging();
 
             app.UseMiddleware<GlobalExceptionMiddleware>();
+
+            app.UseMiddleware<SensitiveEndpointRateLimitMiddleware>();
 
             app.UseAuthorization();
 

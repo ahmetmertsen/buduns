@@ -27,17 +27,56 @@ namespace blogapp_server.Persistence.Context
         public DbSet<ModerationAction> ModerationActions { get; set; }
         public DbSet<Menu> Menus { get; set; }
         public DbSet<Endpoint> Endpoints { get; set; }
+        public DbSet<AuthSession> AuthSessions { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Post>()
                 .Property(post => post.Status)
-                .HasDefaultValue(blogapp_server.Domain.Enums.PostStatus.Published);
+                .HasDefaultValue(Domain.Enums.PostStatus.Published);
 
-            modelBuilder.Entity<User>()
-                .Property(user => user.Status)
-                .HasDefaultValue(blogapp_server.Domain.Enums.UserStatus.Active);
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.Property(user => user.Status)
+                    .HasDefaultValue(Domain.Enums.UserStatus.Active);
+
+                entity.Property(user => user.Status)
+                    .HasConversion<string>();
+            });
+
+            modelBuilder.Entity<AuthSession>(entity =>
+            {
+                entity.HasKey(session => session.Id);
+
+                entity.Property(session => session.RefreshTokenHash)
+                    .HasMaxLength(64)
+                    .IsRequired();
+
+                entity.Property(session => session.DeviceName)
+                    .HasMaxLength(100);
+
+                entity.Property(session => session.UserAgent)
+                    .HasMaxLength(500);
+
+                entity.Property(session => session.IpAddress)
+                    .HasMaxLength(64);
+
+                entity.Property(session => session.RevokedReason)
+                    .HasMaxLength(200);
+
+                entity.HasOne(session => session.User)
+                    .WithMany(user => user.AuthSessions)
+                    .HasForeignKey(session => session.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(session => session.RefreshTokenHash)
+                    .IsUnique();
+
+                entity.HasIndex(session => new { session.UserId, session.RevokedAt });
+                entity.HasIndex(session => session.TokenFamilyId);
+                entity.HasIndex(session => session.ExpiresAt);
+            });
 
             modelBuilder.Entity<Follower>(entity =>
             {
@@ -50,11 +89,7 @@ namespace blogapp_server.Persistence.Context
                     .WithMany(u => u.Followers)
                     .HasForeignKey(f => f.FollowingId)
                     .OnDelete(DeleteBehavior.NoAction);
-            });
 
-
-            modelBuilder.Entity<Follower>(entity =>
-            {
                 entity.HasIndex(x => new { x.FollowerId, x.FollowingId })
                     .IsUnique();
             });

@@ -5,7 +5,6 @@ using blogapp_server.Application.Features.Users.Commands.AssignRoleToUser;
 using blogapp_server.Application.Features.Users.Commands.Update.UpdateEmail;
 using blogapp_server.Application.Features.Users.Commands.Update.UpdateMailVerify;
 using blogapp_server.Application.Features.Users.Commands.Update.UpdatePassword;
-using blogapp_server.Application.Features.Users.Commands.Update.UpdatePhoneNumber;
 using blogapp_server.Application.Features.Users.Commands.Update.UpdateProfile;
 using blogapp_server.Application.Features.Users.Queries.GetAll;
 using blogapp_server.Application.Features.Users.Queries.GetById;
@@ -71,16 +70,6 @@ namespace blogapp_server.WebAPI.Controllers
         [HttpPost]
         [Route("updateUserEmail")]
         public async Task<IActionResult> UpdateUserEmail([FromBody] UpdateUserEmailCommand request)
-        {
-            var response = await _mediatR.Send(request);
-            return Ok(response);
-        }
-
-        [Authorize]
-        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Users, ActionType = ActionType.Updating, Definition = "Update User Phone Number")]
-        [HttpPost]
-        [Route("updatePhoneNumber")]
-        public async Task<IActionResult> UpdateUserPhoneNumber([FromBody] UpdateUserPhoneNumberCommand request)
         {
             var response = await _mediatR.Send(request);
             return Ok(response);

@@ -22,7 +22,7 @@ namespace blogapp_server.Application.Features.Users.Commands.AssignRoleToUser
 
         public async Task<AssignRoleToUserCommandResponse> Handle(AssignRoleToUserCommand request, CancellationToken cancellationToken)
         {
-            await _userService.AssignRoleToUserAsync(request.UserId, request.Roles);
+            await _userService.AssignRoleToUserAsync(request.UserId, request.Roles, cancellationToken);
 
             _logger.LogInformation(
                 "Roles assigned to user. UserId: {UserId}, Roles: {Roles}, RoleCount: {RoleCount}",

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using blogapp_server.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,8 +13,7 @@ namespace blogapp_server.Domain.Entities.Identity
         public string FullName { get; set; }
         public string? Bio { get; set; }
         public string? ImageUrl { get; set; }
-        public string? RefreshToken { get; set; }
-        public DateTime? RefreshTokenEndDate { get; set; }
+        public DateTime? EmailVerificationSentAt { get; set; }
         public DateTime? LastPasswordChangedDate { get; set; }
         public Enums.UserStatus Status { get; set; } = Enums.UserStatus.Active;
         public DateTime? SuspendedUntil { get; set; }
@@ -23,6 +23,7 @@ namespace blogapp_server.Domain.Entities.Identity
         public ICollection<Bookmark> Bookmarks { get; set; }
         public ICollection<Comment> Comments { get; set; }
         public ICollection<Like> Like { get; set; }
+        public ICollection<AuthSession> AuthSessions { get; set; } = new List<AuthSession>();
 
         public ICollection<Follower> Followers { get; set; }
         public ICollection<Follower> Followings { get; set; }

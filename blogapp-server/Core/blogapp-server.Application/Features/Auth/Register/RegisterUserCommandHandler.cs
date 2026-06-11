@@ -24,10 +24,10 @@ namespace blogapp_server.Application.Features.Auth.Register
         public async Task<RegisterUserCommandResponse> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
         {
             RegisterUserRequestDto userDto = _mapper.Map<RegisterUserRequestDto>(request);
-            RegisterUserResponseDto response = await _userService.RegisterAsync(userDto);
+            RegisterUserResponseDto response = await _userService.RegisterAsync(userDto, cancellationToken);
             if (response.Succeeded)
             {
-                return new RegisterUserCommandResponse(Succeeded: true, Message: "Kullanıcı başarıyla kayıt oldu.");
+                return new RegisterUserCommandResponse(Succeeded: true, Message: response.Message);
             }
             else
             {

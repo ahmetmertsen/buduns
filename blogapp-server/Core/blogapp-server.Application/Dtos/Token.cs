@@ -11,5 +11,7 @@ namespace blogapp_server.Application.Dtos
         public string AccessToken { get; set; }
         public DateTime Expiration { get; set; }
         public string RefreshToken { get; set; }
+        public Guid SessionId { get; set; }
+        public bool RequiresEmailVerification { get; set; }
     }
 }

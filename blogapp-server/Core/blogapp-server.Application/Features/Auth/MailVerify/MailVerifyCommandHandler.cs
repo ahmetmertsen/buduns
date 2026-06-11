@@ -22,10 +22,10 @@ namespace blogapp_server.Application.Features.Auth.MailVerify
         {
             MailVerifyRequest request = new()
             {
-                Email = commandRequest.Email,
+                UserId = commandRequest.UserId,
             };
 
-            var response = await _authService.MailVerifyAsync(request);
+            var response = await _authService.MailVerifyAsync(request, cancellationToken);
 
             MailVerifyCommandResponse commandResponse = new(Succeeded:response.Succeeded, Message:response.Message);
             return commandResponse;

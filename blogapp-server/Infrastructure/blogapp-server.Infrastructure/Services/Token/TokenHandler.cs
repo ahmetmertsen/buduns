@@ -22,7 +22,7 @@ namespace blogapp_server.Infrastructure.Services.Token
             _configuration = configuration;
         }
 
-        public Application.Dtos.Token CreateAccessToken(User user, IList<string> roles)
+        public Application.Dtos.Token CreateAccessToken(User user, IList<string> roles, Guid sessionId, string refreshToken)
         {
             Application.Dtos.Token token = new();
 
@@ -31,7 +31,10 @@ namespace blogapp_server.Infrastructure.Services.Token
             //Şifrelenmiş kimliği oluşturuyoruz.
             SigningCredentials signingCredentials = new(securityKey, SecurityAlgorithms.HmacSha256);
             //Oluşturulacak token ayarlarını veriyoruz.
-            token.Expiration = DateTime.UtcNow.AddMinutes(60);
+            var accessTokenExpirationMinutes = _configuration.GetValue<int?>("Token:AccessTokenExpirationMinutes") ?? 15;
+            token.Expiration = DateTime.UtcNow.AddMinutes(accessTokenExpirationMinutes);
+            token.SessionId = sessionId;
+            token.RequiresEmailVerification = !user.EmailConfirmed;
             // Claims - Kullanıcı bilgilerini ve rolleri token'a koyuyoruz.
             var claims = new List<Claim>
             {
@@ -41,6 +44,7 @@ namespace blogapp_server.Infrastructure.Services.Token
                 new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
                 new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName ?? ""),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), //Token Unique Id     
+                new Claim("sid", sessionId.ToString()),
             };
             foreach (var role in roles)
             {
@@ -59,7 +63,7 @@ namespace blogapp_server.Infrastructure.Services.Token
             //Token oluşturucu sınıfından bir örnek
             JwtSecurityTokenHandler tokenHandler = new();
             token.AccessToken = tokenHandler.WriteToken(securityToken);
-            token.RefreshToken = CreateRefreshToken();
+            token.RefreshToken = refreshToken;
 
             return token;
         }

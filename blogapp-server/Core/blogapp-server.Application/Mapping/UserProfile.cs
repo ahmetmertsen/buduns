@@ -4,7 +4,6 @@ using blogapp_server.Application.Dtos.User;
 using blogapp_server.Application.Features.Auth.Register;
 using blogapp_server.Application.Features.Users.Commands.Update.UpdateEmail;
 using blogapp_server.Application.Features.Users.Commands.Update.UpdatePassword;
-using blogapp_server.Application.Features.Users.Commands.Update.UpdatePhoneNumber;
 using blogapp_server.Application.Features.Users.Commands.Update.UpdateProfile;
 using blogapp_server.Domain.Entities.Identity;
 using System;
@@ -29,7 +28,6 @@ namespace blogapp_server.Application.Mapping
             CreateMap<UpdateUserProfileCommand, User>();
             CreateMap<UpdateUserEmailCommand, User>();
             CreateMap<UpdateUserPasswordCommand, User>();
-            CreateMap<UpdateUserPhoneNumberCommand, User>();
 
             //Dto
             CreateMap<User, UserDto>();

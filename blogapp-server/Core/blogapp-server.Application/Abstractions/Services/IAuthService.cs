@@ -9,11 +9,10 @@ namespace blogapp_server.Application.Abstractions.Services
 {
     public interface IAuthService
     {
-        Task<Dtos.Token> LoginAsync(string usernameOrEmail, string password);
-        Task<Dtos.Token> RefreshTokenLoginAsync(string refreshToken);
+        Task<Dtos.Token> LoginAsync(string usernameOrEmail, string password, CancellationToken cancellationToken);
+        Task<Dtos.Token> RefreshTokenLoginAsync(string refreshToken, CancellationToken cancellationToken);
         Task<ForgotPasswordResponse> ForgotPasswordResetAsync(ForgotPasswordRequest request);
-        Task<MailVerifyResponse> MailVerifyAsync(MailVerifyRequest request);
+        Task<MailVerifyResponse> MailVerifyAsync(MailVerifyRequest request, CancellationToken cancellationToken);
         Task<ChangeEmailResponse> ChangeEmailAsync(ChangeEmailRequest request);
-        Task<ChangePhoneNumberResponse> ChangePhoneNumberAsync(ChangePhoneNumberRequest request);
     }
 }

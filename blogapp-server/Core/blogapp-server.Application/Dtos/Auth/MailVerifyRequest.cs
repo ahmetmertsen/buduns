@@ -8,6 +8,6 @@ namespace blogapp_server.Application.Dtos.Auth
 {
     public class MailVerifyRequest
     {
-        public string Email { get; set; }
+        public int UserId { get; set; }
     }
 }

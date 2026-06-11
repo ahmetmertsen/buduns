@@ -50,14 +50,14 @@ namespace blogapp_server.WebAPI.Filters
 
             var code = $"{httpType}.{attribute.ActionType}.{attribute.Definition.Replace(" ", "")}";
 
-            var name = context.HttpContext.User.Identity?.Name
-                ?? context.HttpContext.User.FindFirst(ClaimTypes.Name)?.Value
-                ?? context.HttpContext.User.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value;
-            if (string.IsNullOrEmpty(name))
+            var userIdClaim = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? context.HttpContext.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? context.HttpContext.User.FindFirst("sub")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
             {
                 _logger.LogWarning(
                     "Permission check failed. Reason: {Reason}, Path: {Path}, Controller: {Controller}, Action: {Action}, PermissionCode: {PermissionCode}, Menu: {Menu}, Definition: {Definition}",
-                    "Unauthenticated",
+                    "InvalidUserIdentifier",
                     context.HttpContext.Request.Path,
                     descriptor.ControllerName,
                     descriptor.ActionName,
@@ -69,13 +69,13 @@ namespace blogapp_server.WebAPI.Filters
                 return;
             }
 
-            var hasRole = await _userService.HasRolePermissionToEndpointAsync(name, code);
+            var hasRole = await _userService.HasRolePermissionToEndpointAsync(userId, code);
 
             if (!hasRole)
             {
                 _logger.LogWarning(
-                    "Permission denied. UserName: {UserName}, Path: {Path}, Controller: {Controller}, Action: {Action}, PermissionCode: {PermissionCode}, Menu: {Menu}, Definition: {Definition}",
-                    name,
+                    "Permission denied. UserId: {UserId}, Path: {Path}, Controller: {Controller}, Action: {Action}, PermissionCode: {PermissionCode}, Menu: {Menu}, Definition: {Definition}",
+                    userId,
                     context.HttpContext.Request.Path,
                     descriptor.ControllerName,
                     descriptor.ActionName,

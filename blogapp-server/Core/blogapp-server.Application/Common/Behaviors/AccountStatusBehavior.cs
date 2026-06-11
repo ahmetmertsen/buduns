@@ -57,13 +57,16 @@ namespace blogapp_server.Application.Common.Behaviors
 
                 user.Status = UserStatus.Active;
                 user.SuspendedUntil = null;
-                user.LockoutEnd = null;
-
                 var updateResult = await _userManager.UpdateAsync(user);
                 if (!updateResult.Succeeded)
                 {
                     throw new UnauthorizedAccesException("Kullanıcı hesabı güncellenemedi.");
                 }
+            }
+
+            if (!user.EmailConfirmed && request is not Application.Common.Interfaces.IAllowUnverifiedEmail)
+            {
+                throw new EmailVerificationRequiredException("İşleme devam etmek için e-posta adresinizi doğrulamalısınız.");
             }
 
             return await next();

@@ -23,7 +23,7 @@ namespace blogapp_server.Application.Common.Behaviors
 
         public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
         {
-            if (request is ICurrentUserRequest currentUserRequest)
+            if (request is ICurrentUserRequest || request is ICurrentSessionRequest)
             {
                 var user = _httpContextAccessor.HttpContext?.User;
                 if (user?.Identity?.IsAuthenticated != true)
@@ -40,7 +40,21 @@ namespace blogapp_server.Application.Common.Behaviors
                     throw new UnauthorizedAccesException("Geçerli kullanıcı bilgisi bulunamadı.");
                 }
 
-                currentUserRequest.UserId = userId;
+                if (request is ICurrentUserRequest currentUserRequest)
+                {
+                    currentUserRequest.UserId = userId;
+                }
+
+                if (request is ICurrentSessionRequest currentSessionRequest)
+                {
+                    var sessionIdClaim = user.FindFirst("sid")?.Value ?? user.FindFirst(ClaimTypes.Sid)?.Value;
+                    if (!Guid.TryParse(sessionIdClaim, out var sessionId))
+                    {
+                        throw new UnauthorizedAccesException("Geçerli oturum bilgisi bulunamadı.");
+                    }
+
+                    currentSessionRequest.CurrentSessionId = sessionId;
+                }
             }
             return await next();
         }

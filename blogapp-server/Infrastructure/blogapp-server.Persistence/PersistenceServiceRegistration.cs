@@ -25,7 +25,13 @@ namespace blogapp_server.Persistence
             services.AddDbContext<BlogAppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-            services.AddIdentity<User, Role>()
+            services.AddIdentity<User, Role>(options =>
+                {
+                    options.Lockout.AllowedForNewUsers = true;
+                    options.Lockout.MaxFailedAccessAttempts = 5;
+                    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
+                    options.User.RequireUniqueEmail = true;
+                })
                 .AddEntityFrameworkStores<BlogAppDbContext>()
                 .AddDefaultTokenProviders(); // Password reset vs. tokenları için
 
@@ -44,6 +50,7 @@ namespace blogapp_server.Persistence
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IAuthSessionService, AuthSessionService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<IAuthorizationEndpointService, AuthorizationEndpointService>();
 

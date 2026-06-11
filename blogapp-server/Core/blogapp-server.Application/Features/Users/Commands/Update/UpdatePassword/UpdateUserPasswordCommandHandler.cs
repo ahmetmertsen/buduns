@@ -28,7 +28,7 @@ namespace blogapp_server.Application.Features.Users.Commands.Update.UpdatePasswo
                 newPasswordConfirmed = commandRequest.newPasswordConfirmed,
             };
 
-            var response = await _userService.UpdatePasswordAsync(request);
+            var response = await _userService.UpdatePasswordAsync(request, cancellationToken);
 
             UpdateUserPasswordCommandResponse commandResponse = new()
             {

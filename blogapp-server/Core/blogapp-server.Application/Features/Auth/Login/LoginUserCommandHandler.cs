@@ -20,7 +20,7 @@ namespace blogapp_server.Application.Features.Auth.Login
 
         public async Task<LoginUserCommandResponse> Handle(LoginUserCommand request, CancellationToken cancellationToken)
         {
-            var token = await _authService.LoginAsync(request.UsernameOrEmail, request.Password);
+            var token = await _authService.LoginAsync(request.UsernameOrEmail, request.Password, cancellationToken);
             if (token == null)
             {
                 throw new UnauthorizedAccesException("Kullanıcı adı, Email veya şifre hatalı!");

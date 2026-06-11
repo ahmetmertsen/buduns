@@ -1,4 +1,5 @@
 using blogapp_server.Application.Exceptions;
+using blogapp_server.Application.Abstractions.Services;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Entities.Identity;
@@ -15,12 +16,18 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<ReviewReportCommandHandler> _logger;
+        private readonly IAuthSessionService _authSessionService;
 
-        public ReviewReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<ReviewReportCommandHandler> logger)
+        public ReviewReportCommandHandler(
+            IUnitOfWork unitOfWork,
+            UserManager<User> userManager,
+            ILogger<ReviewReportCommandHandler> logger,
+            IAuthSessionService authSessionService)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _logger = logger;
+            _authSessionService = authSessionService;
         }
 
         public async Task<ReviewReportCommandResponse> Handle(ReviewReportCommand request, CancellationToken cancellationToken)
@@ -99,6 +106,18 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
             await AddReporterNotificationsAsync(openReports);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            if (actionTargetUserId.HasValue &&
+                (request.ActionType == ModerationActionType.SuspendUser ||
+                 request.ActionType == ModerationActionType.BanUser))
+            {
+                await _authSessionService.RevokeAllSessionsAsync(
+                    actionTargetUserId.Value,
+                    request.ActionType == ModerationActionType.BanUser
+                        ? "Account banned"
+                        : "Account suspended",
+                    cancellationToken);
+            }
+
             _logger.LogInformation(
                 "Report resolved. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}, Status: {Status}, ActionType: {ActionType}, TargetType: {TargetType}, TargetId: {TargetId}, ResolvedReportCount: {ResolvedReportCount}",
                 report.Id,
@@ -151,10 +170,6 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     var suspensionEnd = DateTime.UtcNow.AddDays(request.SuspensionDays!.Value);
                     suspendedUser.Status = UserStatus.Suspended;
                     suspendedUser.SuspendedUntil = suspensionEnd;
-                    suspendedUser.RefreshToken = null;
-                    suspendedUser.RefreshTokenEndDate = null;
-                    suspendedUser.LockoutEnabled = true;
-                    suspendedUser.LockoutEnd = new DateTimeOffset(suspensionEnd);
                     await AddTargetNotificationAsync(suspendedUser.Id, NotificationType.ACCOUNT_SUSPENDED, $"Hesabınız {request.SuspensionDays.Value} gün süreyle askıya alındı.");
                     return suspensionEnd;
 
@@ -162,10 +177,6 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     var bannedUser = await GetActionTargetUserAsync(report);
                     bannedUser.Status = UserStatus.Banned;
                     bannedUser.SuspendedUntil = null;
-                    bannedUser.RefreshToken = null;
-                    bannedUser.RefreshTokenEndDate = null;
-                    bannedUser.LockoutEnabled = true;
-                    bannedUser.LockoutEnd = DateTimeOffset.UtcNow.AddYears(100);
                     await AddTargetNotificationAsync(bannedUser.Id, NotificationType.ACCOUNT_BANNED, "Hesabınız moderasyon kararıyla kalıcı olarak yasaklandı.");
                     return null;
 

@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Dtos.User;
 using blogapp_server.Application.Exceptions;
@@ -9,6 +10,7 @@ using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Entities.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -21,17 +23,25 @@ namespace blogapp_server.Persistence.Services
     public class UserService : IUserService
     {
         private readonly UserManager<User> _userManager;
+        private readonly RoleManager<Role> _roleManager;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IAuthSessionService _authSessionService;
+        private readonly IMailService _mailService;
+        private readonly ILogger<UserService> _logger;
         
-        public UserService(UserManager<User> userManager, IMapper mapper, IUnitOfWork unitOfWork)
+        public UserService(UserManager<User> userManager, RoleManager<Role> roleManager, IMapper mapper, IUnitOfWork unitOfWork, IAuthSessionService authSessionService, IMailService mailService, ILogger<UserService> logger)
         {
             _userManager = userManager;
+            _roleManager = roleManager;
             _mapper = mapper;
             _unitOfWork = unitOfWork;
+            _authSessionService = authSessionService;
+            _mailService = mailService;
+            _logger = logger;
         }
 
-        public async Task<RegisterUserResponseDto> RegisterAsync(RegisterUserRequestDto request)
+        public async Task<RegisterUserResponseDto> RegisterAsync(RegisterUserRequestDto request, CancellationToken cancellationToken)
         {
             var user = await _userManager.FindByEmailAsync(request.Email);
             if (user != null)
@@ -46,15 +56,48 @@ namespace blogapp_server.Persistence.Services
                     throw new RegisterFailedException("Username kayıtlar arasında mevcut!");
                 }
             }
+
+            if (!await _roleManager.RoleExistsAsync(RoleConstants.User))
+            {
+                throw new RegisterFailedException("Kayıt tamamlanamadı. User rolü sistemde tanımlı değil.");
+            }
+
             user = _mapper.Map<User>(request);
 
             var result = await _userManager.CreateAsync(user, request.Password);
             if (result.Succeeded)
             {
+                var roleResult = await _userManager.AddToRoleAsync(user, RoleConstants.User);
+                if (!roleResult.Succeeded)
+                {
+                    await _userManager.DeleteAsync(user);
+
+                    throw new RegisterFailedException("Kullanıcı rolü atanamadığı için kayıt tamamlanamadı. User rolünün tanımlı olduğundan emin olun.");
+
+                }
+
+                var message = "Kullanıcı başarıyla kaydedildi. E-posta adresinizi doğrulamanız gerekiyor.";
+                try
+                {
+                    var emailConfirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    await _mailService.SendVerifyMailAsync(user.Email!, user.FullName, user.Id, emailConfirmToken.UrlEncode());
+
+                    user.EmailVerificationSentAt = DateTime.UtcNow;
+                    await _userManager.UpdateAsync(user);
+                }
+                catch (Exception exception)
+                {
+                    message = "Kullanıcı başarıyla kaydedildi ancak doğrulama e-postası gönderilemedi. Tekrar gönderme işlemini kullanabilirsiniz.";
+                    _logger.LogWarning(
+                        exception,
+                        "Registration verification mail could not be sent. UserId: {UserId}",
+                        user.Id);
+                }
+
                 return new RegisterUserResponseDto
                 {
                     Succeeded = true,
-                    Message = "Başarıyla kayıt olunmuştur."
+                    Message = message
                 };
             }
             else
@@ -63,21 +106,7 @@ namespace blogapp_server.Persistence.Services
             }
         }
 
-        public async Task UpdateRefreshToken(string refreshToken, User user, DateTime accessTokenDate)
-        {
-            if (user != null)
-            {
-                user.RefreshToken = refreshToken;
-                user.RefreshTokenEndDate = DateTime.UtcNow.AddDays(30);
-                await _userManager.UpdateAsync(user);
-            }
-            else
-            {
-                throw new NotFoundException("Kullanıcı bulunamadı!");
-            }
-        }
-
-        public async Task<UpdateUserPasswordResponse> UpdatePasswordAsync(UpdateUserPasswordRequest request)
+        public async Task<UpdateUserPasswordResponse> UpdatePasswordAsync(UpdateUserPasswordRequest request, CancellationToken cancellationToken)
         {
             User user = await _userManager.FindByIdAsync(request.UserId.ToString());
             if (user == null)
@@ -100,8 +129,8 @@ namespace blogapp_server.Persistence.Services
                 await _userManager.UpdateSecurityStampAsync(user);
                 user.LastPasswordChangedDate = DateTime.UtcNow;
                 await _userManager.UpdateAsync(user);
+                await _authSessionService.RevokeAllSessionsAsync(user.Id, "Password changed", cancellationToken);
                 
-
                 return new UpdateUserPasswordResponse
                 {
                     Succeeded = true,
@@ -141,6 +170,7 @@ namespace blogapp_server.Persistence.Services
             if (result.Succeeded)
             {
                 await _userManager.UpdateSecurityStampAsync(user);
+                user.EmailVerificationSentAt = null;
 
                 return new UpdateUserMailVerifyResponse
                 {
@@ -213,53 +243,6 @@ namespace blogapp_server.Persistence.Services
             }
         }
 
-        public async Task<UpdateUserPhoneNumberResponse> UpdateUserPhoneNumberAsync(UpdateUserPhoneNumberRequest request)
-        {
-            User user = await _userManager.FindByIdAsync(request.UserId.ToString());
-            if (user == null)
-            {
-                throw new NotFoundException("Kullanıcı bulunamadı.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.NewPhoneNumber))
-            {
-                throw new BadRequestException("Telefon numarası boş olamaz.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.PhoneNumberChangeToken))
-            {
-                throw new BadRequestException("Doğrulama kodu geçersiz.");
-            }
-
-            string newPhoneNumber = request.NewPhoneNumber.UrlDecode().Trim();
-            newPhoneNumber = PhoneNumberHelper.NormalizeTurkeyPhoneNumber(request.NewPhoneNumber);
-            string token = request.PhoneNumberChangeToken.UrlDecode();
-
-            bool phoneNumberExists = await _userManager.Users.AnyAsync(u => u.PhoneNumber == newPhoneNumber && u.Id != user.Id);
-            if (phoneNumberExists)
-            {
-                throw new BadRequestException("Bu telefon numarası başka bir kullanıcı tarafından kullanılıyor.");
-            }
-
-            IdentityResult result = await _userManager.ChangePhoneNumberAsync(user, newPhoneNumber, request.PhoneNumberChangeToken);
-            if (result.Succeeded)
-            {
-                await _userManager.UpdateSecurityStampAsync(user);
-                await _userManager.UpdateAsync(user);
-
-                return new UpdateUserPhoneNumberResponse
-                {
-                    Succeeded = true,
-                    Message = "Telefon numarası başarıyla güncellendi."
-                };
-            }
-            else
-            {
-                throw new ChangePhoneNumberFailedException("Telefon numarası güncellenirken hata oluştu...");
-            }
-        }
-
-
         public async Task<List<UserDto>> GetAllUsersAsync()
         {
             var users = await _userManager.Users.ToListAsync();
@@ -290,7 +273,7 @@ namespace blogapp_server.Persistence.Services
             return response;
         }
 
-        public async Task AssignRoleToUserAsync(int userId, string[] roles)
+        public async Task AssignRoleToUserAsync(int userId, string[] roles, CancellationToken cancellationToken)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user != null)
@@ -299,28 +282,33 @@ namespace blogapp_server.Persistence.Services
                 await _userManager.RemoveFromRolesAsync(user, userRoles);
 
                 await _userManager.AddToRolesAsync(user, roles);
+                await _userManager.UpdateSecurityStampAsync(user);
+                await _authSessionService.RevokeAllSessionsAsync(user.Id, "Roles changed", cancellationToken);
             }
         }
 
 
-        public async Task<string[]> GetRolesToUserAsync(string userIdOrName)
+        public async Task<string[]> GetRolesToUserAsync(int userId)
         {
-            var user = await _userManager.FindByIdAsync(userIdOrName);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
             {
-                user = await _userManager.FindByNameAsync(userIdOrName);
-                if (user == null)
-                {
-                    throw new NotFoundException("Kullanıcı bulunamadı.");
-                }
+                throw new NotFoundException("Kullanıcı bulunamadı.");
             }
+
             var userRoles = await _userManager.GetRolesAsync(user);
             return userRoles.ToArray();
         }
 
-        public async Task<bool> HasRolePermissionToEndpointAsync(string name, string code)
+        public async Task<bool> HasRolePermissionToEndpointAsync(int userId, string code)
         {
-            var userRoles = await GetRolesToUserAsync(name);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                return false;
+            }
+
+            var userRoles = await _userManager.GetRolesAsync(user);
             if (!userRoles.Any())
             {
                 return false;
@@ -332,19 +320,11 @@ namespace blogapp_server.Persistence.Services
                 return false;
             }
 
-            var hasRole = false;
-            var endpointRoles = endpoint.Roles.Select(r => r.Name);
-            foreach (var userRole in userRoles)
-            {
-                foreach (var endpointRole in endpointRoles)
-                {
-                    if (userRole == endpointRole)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
+            var endpointRoles = endpoint.Roles
+                .Select(role => role.Name)
+                .Where(roleName => !string.IsNullOrWhiteSpace(roleName));
+
+            return userRoles.Intersect(endpointRoles).Any();
         }
 
     }

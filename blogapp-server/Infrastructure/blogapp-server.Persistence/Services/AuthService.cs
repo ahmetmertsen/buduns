@@ -1,19 +1,14 @@
-﻿using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Abstractions.Services;
 using blogapp_server.Application.Abstractions.Token;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Dtos.Auth;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.Helpers;
 using blogapp_server.Domain.Entities.Identity;
-using MediatR;
+using blogapp_server.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Persistence.Services
 {
@@ -22,86 +17,43 @@ namespace blogapp_server.Persistence.Services
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly ITokenHandler _tokenHandler;
-        private readonly IUserService _userService;
+        private readonly IAuthSessionService _authSessionService;
         private readonly IMailService _mailService;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(UserManager<User> userManager, SignInManager<User> signInManager, ITokenHandler tokenHandler,  IUserService userService, IMailService mailService, ILogger<AuthService> logger)
+        public AuthService(UserManager<User> userManager, SignInManager<User> signInManager, ITokenHandler tokenHandler, IAuthSessionService authSessionService, IMailService mailService, IConfiguration configuration, ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _tokenHandler = tokenHandler;
-            _userService = userService;
+            _authSessionService = authSessionService;
             _mailService = mailService;
+            _configuration = configuration;
             _logger = logger;
         }
 
-        public async Task<Token> LoginAsync(string usernameOrEmail, string password)
+        public async Task<Token> LoginAsync(string usernameOrEmail, string password, CancellationToken cancellationToken)
         {
-            var user = await _userManager.FindByNameAsync(usernameOrEmail);
+            var user = await _userManager.FindByNameAsync(usernameOrEmail) ?? await _userManager.FindByEmailAsync(usernameOrEmail);
+
             if (user == null)
             {
-                user = await _userManager.FindByEmailAsync(usernameOrEmail);
-                if (user == null)
-                {
-                    _logger.LogWarning("Login failed. Reason: {Reason}", "UserNotFound");
-                    throw new UnauthorizedAccesException("Kullanıcı adı veya şifre hatalı!");
-                }
+                _logger.LogWarning("Login failed. Reason: {Reason}", "UserNotFound");
+                throw new UnauthorizedAccesException("Kullanıcı adı veya şifre hatalı!");
             }
 
-            if (user.Status == Domain.Enums.UserStatus.Suspended && user.SuspendedUntil.HasValue && user.SuspendedUntil.Value <= DateTime.UtcNow)
+            await EnsureModerationStatusAsync(user);
+
+            var result = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+            if (result.IsLockedOut)
             {
-                user.Status = Domain.Enums.UserStatus.Active;
-                user.SuspendedUntil = null;
-                user.LockoutEnd = null;
-                var updateResult = await _userManager.UpdateAsync(user);
-                if (!updateResult.Succeeded)
-                {
-                    throw new UnauthorizedAccesException("Kullanıcı hesabı güncellenemedi.");
-                }
+                _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "IdentityLockout", user.Id);
+                throw new UnauthorizedAccesException("Çok fazla başarısız giriş denemesi yapıldı. Lütfen daha sonra tekrar deneyin.");
             }
 
-            var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
-            if (result.Succeeded)
+            if (!result.Succeeded)
             {
-                if (user.Status == Domain.Enums.UserStatus.Banned)
-                {
-                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserBanned", user.Id);
-                    throw new UnauthorizedAccesException("Bu hesap platformdan yasaklanmıştır.");
-                }
-
-                if (user.Status == Domain.Enums.UserStatus.Suspended)
-                {
-                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserSuspended", user.Id);
-                    throw new UnauthorizedAccesException("Bu hesap geçici olarak askıya alınmıştır.");
-                }
-
-                var roles = await _userManager.GetRolesAsync(user);
-                Token token = _tokenHandler.CreateAccessToken(user, roles);
-                await _userService.UpdateRefreshToken(token.RefreshToken, user, token.Expiration);
-
-                _logger.LogInformation(
-                    "Login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}",
-                    user.Id,
-                    user.UserName,
-                    roles.Count);
-
-                return token;
-            }
-            else
-            {
-                if (user.Status == Domain.Enums.UserStatus.Banned)
-                {
-                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserBanned", user.Id);
-                    throw new UnauthorizedAccesException("Bu hesap platformdan yasaklanmıştır.");
-                }
-
-                if (user.Status == Domain.Enums.UserStatus.Suspended)
-                {
-                    _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserSuspended", user.Id);
-                    throw new UnauthorizedAccesException("Bu hesap geçici olarak askıya alınmıştır.");
-                }
-
                 _logger.LogWarning(
                     "Login failed. Reason: {Reason}, UserId: {UserId}, UserName: {UserName}",
                     "InvalidPassword",
@@ -110,62 +62,70 @@ namespace blogapp_server.Persistence.Services
 
                 throw new UnauthorizedAccesException("Kullanıcı adı veya şifre hatalı!");
             }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var sessionId = Guid.NewGuid();
+            var refreshToken = _tokenHandler.CreateRefreshToken();
+            var token = _tokenHandler.CreateAccessToken(user, roles, sessionId, refreshToken);
+            var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(GetRefreshTokenExpirationDays());
+
+            await _authSessionService.CreateSessionAsync(user.Id, sessionId, Guid.NewGuid(), refreshToken, refreshTokenExpiresAt, cancellationToken);
+
+            _logger.LogInformation(
+                "Login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}, EmailConfirmed: {EmailConfirmed}, SessionId: {SessionId}",
+                user.Id,
+                user.UserName,
+                roles.Count,
+                user.EmailConfirmed,
+                sessionId);
+
+            return token;
         }
 
-        public async Task<Token> RefreshTokenLoginAsync(string refreshToken)
+        public async Task<Token> RefreshTokenLoginAsync(string refreshToken, CancellationToken cancellationToken)
         {
-            User? user = await _userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
-            if (user != null && user?.RefreshTokenEndDate > DateTime.UtcNow)
+            var replacementSessionId = Guid.NewGuid();
+            var replacementRefreshToken = _tokenHandler.CreateRefreshToken();
+            var replacementExpiresAt = DateTime.UtcNow.AddDays(GetRefreshTokenExpirationDays());
+
+            var rotation = await _authSessionService.RotateSessionAsync(refreshToken, replacementSessionId, replacementRefreshToken, replacementExpiresAt, cancellationToken);
+
+            var user = await _userManager.FindByIdAsync(rotation.UserId.ToString());
+            if (user == null)
             {
-                if (user.Status == Domain.Enums.UserStatus.Banned)
-                {
-                    _logger.LogWarning("Refresh token login blocked. Reason: {Reason}, UserId: {UserId}", "UserBanned", user.Id);
-                    throw new UnauthorizedAccesException("Bu hesap platformdan yasaklanmıştır.");
-                }
-
-                if (user.Status == Domain.Enums.UserStatus.Suspended)
-                {
-                    if (!user.SuspendedUntil.HasValue || user.SuspendedUntil.Value > DateTime.UtcNow)
-                    {
-                        _logger.LogWarning("Refresh token login blocked. Reason: {Reason}, UserId: {UserId}", "UserSuspended", user.Id);
-                        throw new UnauthorizedAccesException("Bu hesap geçici olarak askıya alınmıştır.");
-                    }
-
-                    user.Status = Domain.Enums.UserStatus.Active;
-                    user.SuspendedUntil = null;
-                    user.LockoutEnd = null;
-                    var updateResult = await _userManager.UpdateAsync(user);
-                    if (!updateResult.Succeeded)
-                    {
-                        throw new UnauthorizedAccesException("Kullanıcı hesabı güncellenemedi.");
-                    }
-                }
-
-                var roles = await _userManager.GetRolesAsync(user);
-                Token token = _tokenHandler.CreateAccessToken(user, roles);
-                await _userService.UpdateRefreshToken(token.RefreshToken, user, token.Expiration);
-
-                _logger.LogInformation(
-                    "Refresh token login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}",
-                    user.Id,
-                    user.UserName,
-                    roles.Count);
-
-                return token;
+                await _authSessionService.RevokeAllSessionsAsync(rotation.UserId, "User not found during refresh", cancellationToken);
+                throw new InvalidRefreshTokenException("Refresh token geçersiz veya süresi dolmuş.");
             }
-            else
+
+            try
             {
-                _logger.LogWarning("Refresh token login failed. Reason: {Reason}", "InvalidOrExpiredRefreshToken");
-                throw new NotFoundException("Kullanıcı bulunumadı!");
+                await EnsureModerationStatusAsync(user);
             }
+            catch
+            {
+                await _authSessionService.RevokeAllSessionsAsync(user.Id, "Account is not allowed to refresh", cancellationToken);
+                throw;
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var token = _tokenHandler.CreateAccessToken(user, roles, replacementSessionId, replacementRefreshToken);
+
+            _logger.LogInformation(
+                "Refresh token login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}, SessionId: {SessionId}",
+                user.Id,
+                user.UserName,
+                roles.Count,
+                replacementSessionId);
+
+            return token;
         }
 
         public async Task<ForgotPasswordResponse> ForgotPasswordResetAsync(ForgotPasswordRequest request)
         {
-            ForgotPasswordResponse response = new()
+            var response = new ForgotPasswordResponse
             {
                 Succeeded = true,
-                Message = "Mail adresi doğru ise Şifre Sıfırlama bağlantısı gönderildi"
+                Message = "Mail adresi doğru ise şifre sıfırlama bağlantısı gönderildi."
             };
 
             if (string.IsNullOrWhiteSpace(request.EmailOrUsername))
@@ -173,66 +133,61 @@ namespace blogapp_server.Persistence.Services
                 return response;
             }
 
-            User user = await _userManager.FindByEmailAsync(request.EmailOrUsername);
+            var user = await _userManager.FindByEmailAsync(request.EmailOrUsername) ?? await _userManager.FindByNameAsync(request.EmailOrUsername);
+
             if (user == null)
             {
-                user = await _userManager.FindByNameAsync(request.EmailOrUsername);
-                if (user == null)
-                {
-                    return response;
-                }
+                return response;
             }
 
-            // Reset token üretiliyor
-            string resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-            resetToken = resetToken.UrlEncode();
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            await _mailService.SendForgotPasswordMailAsync(user.Email!, user.FullName, user.Id, resetToken.UrlEncode());
 
-            await _mailService.SendForgotPasswordMailAsync(user.Email, user.FullName, user.Id, resetToken);
             return response;
         }
 
-
-        public async Task<MailVerifyResponse> MailVerifyAsync(MailVerifyRequest request)
+        public async Task<MailVerifyResponse> MailVerifyAsync(MailVerifyRequest request, CancellationToken cancellationToken)
         {
-            MailVerifyResponse response = new()
+            var response = new MailVerifyResponse
             {
                 Succeeded = true,
-                Message = "Mail adresi doğru ise doğrulama bağlantısı gönderildi"
+                Message = "Doğrulama bağlantısı e-posta adresinize gönderildi."
             };
 
-            if (string.IsNullOrWhiteSpace(request.Email))
+            var user = await _userManager.FindByIdAsync(request.UserId.ToString());
+            if (user == null || string.IsNullOrWhiteSpace(user.Email))
             {
                 return response;
             }
 
-            User user = await _userManager.FindByEmailAsync(request.Email);
-            if (user == null)
+            if (user.EmailConfirmed)
             {
+                response.Message = "E-posta adresi zaten doğrulanmış.";
                 return response;
             }
 
-            if (user.EmailConfirmed == true)
+            if (user.EmailVerificationSentAt.HasValue && user.EmailVerificationSentAt.Value > DateTime.UtcNow.AddMinutes(-1))
             {
-                return new MailVerifyResponse
-                {
-                    Succeeded = true,
-                    Message = "E-posta adresi zaten doğrulanmış."
-                };
+                response.Message = "Doğrulama e-postası kısa süre önce gönderildi. Lütfen tekrar denemeden önce bekleyin.";
+                return response;
             }
 
-            string emailConfirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            emailConfirmToken = emailConfirmToken.UrlEncode();
+            var emailConfirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            await _mailService.SendVerifyMailAsync(user.Email, user.FullName, user.Id, emailConfirmToken.UrlEncode());
 
-            await _mailService.SendVerifyMailAsync(user.Email, user.FullName, user.Id, emailConfirmToken);
+            user.EmailVerificationSentAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
+
+            _logger.LogInformation("Verification mail requested. UserId: {UserId}", user.Id);
             return response;
         }
 
         public async Task<ChangeEmailResponse> ChangeEmailAsync(ChangeEmailRequest request)
         {
-            ChangeEmailResponse response = new()
+            var response = new ChangeEmailResponse
             {
                 Succeeded = true,
-                Message = "Yeni e-posta adresiniz doğrulama için kontrol edilmelidir. Uygunsa doğrulama bağlantısı gönderildi."
+                Message = "Yeni e-posta adresiniz uygunsa doğrulama bağlantısı gönderildi."
             };
 
             if (string.IsNullOrWhiteSpace(request.NewEmail))
@@ -240,62 +195,54 @@ namespace blogapp_server.Persistence.Services
                 return response;
             }
 
-            User user = await _userManager.FindByIdAsync(request.UserId.ToString());
+            var user = await _userManager.FindByIdAsync(request.UserId.ToString());
             if (user == null)
             {
                 return response;
             }
 
-            string newEmail = request.NewEmail.Trim().ToLower();
-            User user2 = await _userManager.FindByEmailAsync(newEmail);
-            if (user2 != null)
+            var newEmail = request.NewEmail.Trim().ToLowerInvariant();
+            var existingUser = await _userManager.FindByEmailAsync(newEmail);
+            if (existingUser != null)
             {
                 return response;
             }
 
-            string emailChangeToken = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
-            emailChangeToken = emailChangeToken.UrlEncode();
+            var emailChangeToken = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            await _mailService.SendChangeEmailMailAsync(newEmail, user.FullName, user.Id, emailChangeToken.UrlEncode());
 
-            await _mailService.SendChangeEmailMailAsync(newEmail, user.FullName, user.Id, emailChangeToken);
             return response;
         }
 
-        public async Task<ChangePhoneNumberResponse> ChangePhoneNumberAsync(ChangePhoneNumberRequest request)
+        private async Task EnsureModerationStatusAsync(User user)
         {
-            ChangePhoneNumberResponse response = new()
+            if (user.Status == UserStatus.Banned)
             {
-                Succeeded = true,
-                Message = "Telefon numarası uygunsa doğrulama kodu e-posta adresinize gönderildi."
-            };
-
-            if (string.IsNullOrWhiteSpace(request.NewPhoneNumber))
-            {
-                return response;
+                _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserBanned", user.Id);
+                throw new UnauthorizedAccesException("Bu hesap platformdan yasaklanmıştır.");
             }
 
-            User user = await _userManager.FindByIdAsync(request.UserId.ToString());
-            if (user == null)
+            if (user.Status != UserStatus.Suspended)
             {
-                return response;
-            }
-            if (string.IsNullOrWhiteSpace(user.Email))
-            {
-                return response;
+                return;
             }
 
-            string newPhoneNumber = request.NewPhoneNumber.Trim();
-            newPhoneNumber = PhoneNumberHelper.NormalizeTurkeyPhoneNumber(request.NewPhoneNumber);
-
-            bool phoneNumberExists = await _userManager.Users.AnyAsync(u => u.PhoneNumber == newPhoneNumber && u.Id != user.Id);
-            if (phoneNumberExists == true)
+            if (!user.SuspendedUntil.HasValue || user.SuspendedUntil.Value > DateTime.UtcNow)
             {
-                return response;
+                _logger.LogWarning("Login blocked. Reason: {Reason}, UserId: {UserId}", "UserSuspended", user.Id);
+                throw new UnauthorizedAccesException("Bu hesap geçici olarak askıya alınmıştır.");
             }
 
-            string token = await _userManager.GenerateChangePhoneNumberTokenAsync(user, newPhoneNumber);
-
-            await _mailService.SendChangePhoneNumberMailAsync(user.Email, user.FullName, user.Id, newPhoneNumber, token);
-            return response;
+            user.Status = UserStatus.Active;
+            user.SuspendedUntil = null;
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                throw new UnauthorizedAccesException("Kullanıcı hesabı güncellenemedi.");
+            }
         }
+
+        private int GetRefreshTokenExpirationDays() =>
+            int.TryParse(_configuration["Token:RefreshTokenExpirationDays"], out var days) && days > 0 ? days : 30;
     }
 }

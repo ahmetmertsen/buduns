@@ -19,7 +19,7 @@ namespace blogapp_server.Application.Features.Users.Queries.GetRolesToUser
 
         public async Task<GetRolesToUserQueryResponse> Handle(GetRolesToUserQuery request, CancellationToken cancellationToken)
         {
-            var roles = await _userService.GetRolesToUserAsync(request.UserId.ToString());
+            var roles = await _userService.GetRolesToUserAsync(request.UserId);
             GetRolesToUserQueryResponse response = new()
             {
                 UserId = request.UserId,
