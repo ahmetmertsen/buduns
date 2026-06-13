@@ -11,6 +11,7 @@ namespace blogapp_server.Application.Features.Comments.Commands.Update
 {
     public class UpdateCommentsCommand : IRequest<UpdateCommentsCommandResponse>, ICurrentUserRequest
     {
+        [JsonIgnore]
         public int Id { get; set; }
         public string Content { get; set; }
 

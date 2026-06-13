@@ -26,7 +26,7 @@ namespace blogapp_server.Application.Features.Report.Queries.GetById
                 throw new NotFoundException("Şikayet bulunamadı.");
             }
 
-            var targetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetUserId;
+            var targetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetType == ReportTargetType.User ? report.TargetUserId : report.TargetCommentId;
             if (!targetId.HasValue)
             {
                 throw new BadRequestException("Şikayet hedefi bulunamadı.");

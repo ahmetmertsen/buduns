@@ -1,5 +1,5 @@
-using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Entities.Identity;
@@ -18,11 +18,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
         private readonly ILogger<ReviewReportCommandHandler> _logger;
         private readonly IAuthSessionService _authSessionService;
 
-        public ReviewReportCommandHandler(
-            IUnitOfWork unitOfWork,
-            UserManager<User> userManager,
-            ILogger<ReviewReportCommandHandler> logger,
-            IAuthSessionService authSessionService)
+        public ReviewReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<ReviewReportCommandHandler> logger, IAuthSessionService authSessionService)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
@@ -51,22 +47,13 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                 report.UpdateAt = DateTime.UtcNow;
                 _unitOfWork.ReportRepository.Update(report);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                _logger.LogInformation(
-                    "Report review started. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}",
-                    report.Id,
-                    request.UserId);
-
+                _logger.LogInformation("Report review started. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}", report.Id, request.UserId);
                 return new ReviewReportCommandResponse(true, "Şikayet incelemeye alındı.");
             }
 
             ValidateActionForTarget(report, request.ActionType);
-
             var actionTargetUserId = ResolveActionTargetUserId(report, request.ActionType);
-            if (actionTargetUserId == request.UserId &&
-                (request.ActionType == ModerationActionType.WarnUser ||
-                 request.ActionType == ModerationActionType.SuspendUser ||
-                 request.ActionType == ModerationActionType.BanUser))
+            if (actionTargetUserId == request.UserId && IsUserAction(request.ActionType))
             {
                 throw new BadRequestException("Moderatör kendi hesabına moderasyon aksiyonu uygulayamaz.");
             }
@@ -94,6 +81,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                 TargetType = report.TargetType,
                 TargetPostId = report.TargetPostId,
                 TargetUserId = ResolveActionTargetUserId(report, request.ActionType),
+                TargetCommentId = report.TargetCommentId,
                 Note = request.ReviewNote?.Trim(),
                 ExpiresAt = actionExpiresAt,
                 CreatedAt = reviewedAt,
@@ -102,32 +90,15 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                 isDeleted = false
             };
             await _unitOfWork.ModerationActionRepository.AddAsync(moderationAction);
-
             await AddReporterNotificationsAsync(openReports);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            if (actionTargetUserId.HasValue &&
-                (request.ActionType == ModerationActionType.SuspendUser ||
-                 request.ActionType == ModerationActionType.BanUser))
+            if (actionTargetUserId.HasValue && (request.ActionType == ModerationActionType.SuspendUser || request.ActionType == ModerationActionType.BanUser))
             {
-                await _authSessionService.RevokeAllSessionsAsync(
-                    actionTargetUserId.Value,
-                    request.ActionType == ModerationActionType.BanUser
-                        ? "Account banned"
-                        : "Account suspended",
-                    cancellationToken);
+                await _authSessionService.RevokeAllSessionsAsync(actionTargetUserId.Value, request.ActionType == ModerationActionType.BanUser ? "Account banned" : "Account suspended", cancellationToken);
             }
 
-            _logger.LogInformation(
-                "Report resolved. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}, Status: {Status}, ActionType: {ActionType}, TargetType: {TargetType}, TargetId: {TargetId}, ResolvedReportCount: {ResolvedReportCount}",
-                report.Id,
-                request.UserId,
-                request.Status,
-                request.ActionType,
-                report.TargetType,
-                targetId,
-                openReports.Count);
-
+            _logger.LogInformation("Report resolved. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}, Status: {Status}, ActionType: {ActionType}, TargetType: {TargetType}, TargetId: {TargetId}, ResolvedReportCount: {ResolvedReportCount}", report.Id, request.UserId, request.Status, request.ActionType, report.TargetType, targetId, openReports.Count);
             return new ReviewReportCommandResponse(true, "Şikayet ve aynı hedefe ait açık şikayetler sonuçlandırıldı.");
         }
 
@@ -137,7 +108,6 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
             {
                 case ModerationActionType.None:
                     return null;
-
                 case ModerationActionType.HidePost:
                     var postToHide = GetTargetPost(report);
                     postToHide.Status = PostStatus.HiddenByModerator;
@@ -145,9 +115,8 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     postToHide.isActive = false;
                     postToHide.UpdateAt = DateTime.UtcNow;
                     _unitOfWork.PostRepository.Update(postToHide);
-                    await AddTargetNotificationAsync(postToHide.UserId, NotificationType.POST_HIDDEN, "Paylaşımınız moderasyon kararıyla gizlendi.");
+                    await AddTargetNotificationAsync(postToHide.UserId, NotificationType.POST_HIDDEN, "Paylaşımınız moderasyon kararıyla gizlendi.", postToHide.Id);
                     return null;
-
                 case ModerationActionType.DeletePost:
                     var postToDelete = GetTargetPost(report);
                     postToDelete.Status = PostStatus.DeletedByModerator;
@@ -156,15 +125,29 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     postToDelete.isDeleted = true;
                     postToDelete.UpdateAt = DateTime.UtcNow;
                     _unitOfWork.PostRepository.Update(postToDelete);
-                    await AddTargetNotificationAsync(postToDelete.UserId, NotificationType.POST_REMOVED, "Paylaşımınız moderasyon kararıyla kaldırıldı.");
+                    await AddTargetNotificationAsync(postToDelete.UserId, NotificationType.POST_REMOVED, "Paylaşımınız moderasyon kararıyla kaldırıldı.", postToDelete.Id);
                     return null;
-
+                case ModerationActionType.HideComment:
+                    var commentToHide = GetTargetComment(report);
+                    EnsureCommentCanBeModerated(commentToHide);
+                    commentToHide.Status = CommentStatus.HiddenByModerator;
+                    commentToHide.isActive = false;
+                    commentToHide.UpdateAt = DateTime.UtcNow;
+                    await AddTargetNotificationAsync(commentToHide.UserId, NotificationType.COMMENT_HIDDEN, "Yorumunuz moderasyon kararıyla gizlendi.", commentToHide.PostId, commentToHide.Id);
+                    return null;
+                case ModerationActionType.DeleteComment:
+                    var commentToDelete = GetTargetComment(report);
+                    EnsureCommentCanBeModerated(commentToDelete);
+                    commentToDelete.Status = CommentStatus.DeletedByModerator;
+                    commentToDelete.isActive = false;
+                    commentToDelete.isDeleted = true;
+                    commentToDelete.UpdateAt = DateTime.UtcNow;
+                    await AddTargetNotificationAsync(commentToDelete.UserId, NotificationType.COMMENT_REMOVED, "Yorumunuz moderasyon kararıyla kaldırıldı.", commentToDelete.PostId, commentToDelete.Id);
+                    return null;
                 case ModerationActionType.WarnUser:
-                    var warnedUserId = ResolveActionTargetUserId(report, request.ActionType)
-                        ?? throw new BadRequestException("Uyarılacak kullanıcı bulunamadı.");
+                    var warnedUserId = ResolveActionTargetUserId(report, request.ActionType) ?? throw new BadRequestException("Uyarılacak kullanıcı bulunamadı.");
                     await AddTargetNotificationAsync(warnedUserId, NotificationType.MODERATION_WARNING, "Hesabınız bir topluluk kuralı ihlali nedeniyle uyarıldı.");
                     return null;
-
                 case ModerationActionType.SuspendUser:
                     var suspendedUser = await GetActionTargetUserAsync(report);
                     var suspensionEnd = DateTime.UtcNow.AddDays(request.SuspensionDays!.Value);
@@ -172,14 +155,12 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     suspendedUser.SuspendedUntil = suspensionEnd;
                     await AddTargetNotificationAsync(suspendedUser.Id, NotificationType.ACCOUNT_SUSPENDED, $"Hesabınız {request.SuspensionDays.Value} gün süreyle askıya alındı.");
                     return suspensionEnd;
-
                 case ModerationActionType.BanUser:
                     var bannedUser = await GetActionTargetUserAsync(report);
                     bannedUser.Status = UserStatus.Banned;
                     bannedUser.SuspendedUntil = null;
                     await AddTargetNotificationAsync(bannedUser.Id, NotificationType.ACCOUNT_BANNED, "Hesabınız moderasyon kararıyla kalıcı olarak yasaklandı.");
                     return null;
-
                 default:
                     throw new BadRequestException("Desteklenmeyen moderasyon aksiyonu.");
             }
@@ -187,42 +168,60 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
 
         private static void ValidateActionForTarget(ReportEntity report, ModerationActionType actionType)
         {
-            if ((actionType == ModerationActionType.HidePost || actionType == ModerationActionType.DeletePost) &&
-                report.TargetType != ReportTargetType.Post)
+            if ((actionType == ModerationActionType.HidePost || actionType == ModerationActionType.DeletePost) && report.TargetType != ReportTargetType.Post)
             {
                 throw new BadRequestException("Post moderasyon aksiyonu yalnızca post şikayetlerine uygulanabilir.");
             }
+
+            if ((actionType == ModerationActionType.HideComment || actionType == ModerationActionType.DeleteComment) && report.TargetType != ReportTargetType.Comment)
+            {
+                throw new BadRequestException("Yorum moderasyon aksiyonu yalnızca yorum şikayetlerine uygulanabilir.");
+            }
         }
 
-        private static Post GetTargetPost(ReportEntity report) =>
-            report.TargetPost ?? throw new NotFoundException("Şikayet edilen gönderi bulunamadı.");
+        private static bool IsUserAction(ModerationActionType actionType) => actionType == ModerationActionType.WarnUser || actionType == ModerationActionType.SuspendUser || actionType == ModerationActionType.BanUser;
+
+        private static Post GetTargetPost(ReportEntity report) => report.TargetPost ?? throw new NotFoundException("Şikayet edilen paylaşım bulunamadı.");
+
+        private static Comment GetTargetComment(ReportEntity report) => report.TargetComment ?? throw new NotFoundException("Şikayet edilen yorum bulunamadı.");
+
+        private static void EnsureCommentCanBeModerated(Comment comment)
+        {
+            if (comment.Status != CommentStatus.Published || !comment.isActive || comment.isDeleted)
+            {
+                throw new BadRequestException("Yorum artık moderasyon aksiyonu uygulanabilecek durumda değil.");
+            }
+        }
 
         private async Task<User> GetActionTargetUserAsync(ReportEntity report)
         {
-            var targetUserId = ResolveActionTargetUserId(report, ModerationActionType.WarnUser)
-                ?? throw new NotFoundException("Moderasyon uygulanacak kullanıcı bulunamadı.");
-            return await _userManager.FindByIdAsync(targetUserId.ToString())
-                ?? throw new NotFoundException("Moderasyon uygulanacak kullanıcı bulunamadı.");
+            var targetUserId = ResolveActionTargetUserId(report, ModerationActionType.WarnUser) ?? throw new NotFoundException("Moderasyon uygulanacak kullanıcı bulunamadı.");
+            return await _userManager.FindByIdAsync(targetUserId.ToString()) ?? throw new NotFoundException("Moderasyon uygulanacak kullanıcı bulunamadı.");
         }
 
         private static int? ResolveActionTargetUserId(ReportEntity report, ModerationActionType actionType)
         {
-            if (actionType == ModerationActionType.None ||
-                actionType == ModerationActionType.HidePost ||
-                actionType == ModerationActionType.DeletePost)
+            if (!IsUserAction(actionType))
             {
                 return report.TargetUserId;
             }
 
-            return report.TargetType == ReportTargetType.User
-                ? report.TargetUserId
-                : report.TargetPost?.UserId;
+            return report.TargetType switch
+            {
+                ReportTargetType.User => report.TargetUserId,
+                ReportTargetType.Post => report.TargetPost?.UserId,
+                ReportTargetType.Comment => report.TargetComment?.UserId,
+                _ => null
+            };
         }
 
-        private static int GetTargetId(ReportEntity report) =>
-            report.TargetType == ReportTargetType.Post
-                ? report.TargetPostId ?? throw new BadRequestException("Şikayet hedefi bulunamadı.")
-                : report.TargetUserId ?? throw new BadRequestException("Şikayet hedefi bulunamadı.");
+        private static int GetTargetId(ReportEntity report) => report.TargetType switch
+        {
+            ReportTargetType.Post => report.TargetPostId ?? throw new BadRequestException("Şikayet hedefi bulunamadı."),
+            ReportTargetType.User => report.TargetUserId ?? throw new BadRequestException("Şikayet hedefi bulunamadı."),
+            ReportTargetType.Comment => report.TargetCommentId ?? throw new BadRequestException("Şikayet hedefi bulunamadı."),
+            _ => throw new BadRequestException("Şikayet hedefi geçersiz.")
+        };
 
         private async Task AddReporterNotificationsAsync(IEnumerable<ReportEntity> reports)
         {
@@ -232,17 +231,9 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
             }
         }
 
-        private async Task AddTargetNotificationAsync(int userId, NotificationType type, string message)
+        private async Task AddTargetNotificationAsync(int userId, NotificationType type, string message, int? postId = null, int? commentId = null)
         {
-            await _unitOfWork.NotificationRepository.AddAsync(new Notification
-            {
-                UserId = userId,
-                Type = type,
-                Message = message,
-                CreatedAt = DateTime.UtcNow,
-                isActive = true,
-                isDeleted = false
-            });
+            await _unitOfWork.NotificationRepository.AddAsync(new Notification { UserId = userId, Type = type, Message = message, PostId = postId, CommentId = commentId, CreatedAt = DateTime.UtcNow, isActive = true, isDeleted = false });
         }
     }
 }

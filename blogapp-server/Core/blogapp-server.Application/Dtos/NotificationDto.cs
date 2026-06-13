@@ -13,5 +13,12 @@ namespace blogapp_server.Application.Dtos
         public NotificationType Type { get; set; }
         public string Message { get; set; }
         public int UserId { get; set; }
+        public int? ActorUserId { get; set; }
+        public string? ActorUserName { get; set; }
+        public int? PostId { get; set; }
+        public int? CommentId { get; set; }
+        public bool IsRead { get; set; }
+        public DateTime? ReadAt { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

@@ -15,10 +15,11 @@ namespace blogapp_server.Application.Mapping
     {
         public CommentProfile()
         {
-            CreateMap<CreateCommentsCommand, Comment>();
-            CreateMap<UpdateCommentsCommand, Comment>();
-
-            CreateMap<Comment, CommentDto>();
+            CreateMap<Comment, CommentDto>()
+                .ForMember(destination => destination.UserName, options => options.MapFrom(source => source.User != null ? source.User.UserName : null))
+                .ForMember(destination => destination.UserImageUrl, options => options.MapFrom(source => source.User != null ? source.User.ImageUrl : null))
+                .ForMember(destination => destination.UpdatedAt, options => options.MapFrom(source => source.UpdateAt == default ? (DateTime?)null : source.UpdateAt))
+                .ForMember(destination => destination.IsEdited, options => options.MapFrom(source => source.UpdateAt != default));
         }
     }
 }

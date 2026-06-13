@@ -1,13 +1,8 @@
 ﻿using blogapp_server.Application.Exceptions;
-using blogapp_server.Application.Features.Posts.Commands.Delete;
 using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Comments.Commands.Delete
 {
@@ -24,26 +19,35 @@ namespace blogapp_server.Application.Features.Comments.Commands.Delete
 
         public async Task<DeleteCommentsCommandResponse> Handle(DeleteCommentsCommand request, CancellationToken cancellationToken)
         {
-            var comment = await _unitOfWork.CommentRepository.GetByIdAsync(request.Id);
+            var comment = await _unitOfWork.CommentRepository.GetForMutationAsync(request.Id, cancellationToken);
             if (comment == null)
             {
-                throw new NotFoundException("Yorum bulunamadı!");
+                throw new NotFoundException("Yorum bulunamadı.");
             }
+
             if (comment.UserId != request.UserId)
             {
-                throw new UnauthorizedAccesException("Bu yorumu silme yetkiniz yok.");
+                throw new ForbiddenException("Bu yorumu silme yetkiniz yok.");
             }
 
-            await _unitOfWork.CommentRepository.DeleteAsync(request.Id);
+            if (comment.Status == CommentStatus.DeletedByOwner)
+            {
+                return new DeleteCommentsCommandResponse(true, "Yorum daha önce silinmiş.");
+            }
+
+            if (comment.Status != CommentStatus.Published)
+            {
+                throw new BadRequestException("Moderasyon işlemi uygulanmış bir yorum silinemez.");
+            }
+
+            comment.Status = CommentStatus.DeletedByOwner;
+            comment.isActive = false;
+            comment.isDeleted = true;
+            comment.UpdateAt = DateTime.UtcNow;
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "Comment deleted. CommentId: {CommentId}, PostId: {PostId}, UserId: {UserId}",
-                request.Id,
-                comment.PostId,
-                request.UserId);
-
-            return new DeleteCommentsCommandResponse(true, "Yorum başarıyla silinmiştir.");
+            _logger.LogInformation("Comment deleted by owner. CommentId: {CommentId}, PostId: {PostId}, UserId: {UserId}", comment.Id, comment.PostId, request.UserId);
+            return new DeleteCommentsCommandResponse(true, "Yorum başarıyla silindi.");
         }
     }
 }

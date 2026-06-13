@@ -85,6 +85,19 @@ namespace blogapp_server.Persistence.Context
                     .HasDatabaseName("UX_Bookmarks_UserId_PostId");
             });
 
+            modelBuilder.Entity<Comment>(entity =>
+            {
+                entity.Property(comment => comment.Content)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                entity.Property(comment => comment.Status)
+                    .HasDefaultValue(Domain.Enums.CommentStatus.Published);
+
+                entity.HasIndex(comment => new { comment.PostId, comment.Status, comment.CreatedAt });
+                entity.HasIndex(comment => new { comment.UserId, comment.Status, comment.CreatedAt });
+            });
+
             modelBuilder.Entity<Follower>(entity =>
             {
                 entity.HasOne(f => f.FollowerUser)
@@ -106,6 +119,23 @@ namespace blogapp_server.Persistence.Context
             {
                 entity.Property(n => n.Type)
                     .HasConversion<string>();
+
+                entity.HasOne(notification => notification.ActorUser)
+                    .WithMany()
+                    .HasForeignKey(notification => notification.ActorUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(notification => notification.Post)
+                    .WithMany()
+                    .HasForeignKey(notification => notification.PostId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(notification => notification.Comment)
+                    .WithMany()
+                    .HasForeignKey(notification => notification.CommentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(notification => new { notification.UserId, notification.IsRead, notification.CreatedAt });
             });
 
 
@@ -115,8 +145,9 @@ namespace blogapp_server.Persistence.Context
 
                 entity.HasCheckConstraint(
                     "CK_Reports_Target",
-                    "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL AND \"TargetUserId\" IS NULL) OR " +
-                    "(\"TargetType\" = 1 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NOT NULL)");
+                    "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL AND \"TargetUserId\" IS NULL AND \"TargetCommentId\" IS NULL) OR " +
+                    "(\"TargetType\" = 1 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NOT NULL AND \"TargetCommentId\" IS NULL) OR " +
+                    "(\"TargetType\" = 2 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NULL AND \"TargetCommentId\" IS NOT NULL)");
 
                 entity.Property(r => r.Description)
                     .HasMaxLength(1000);
@@ -144,6 +175,11 @@ namespace blogapp_server.Persistence.Context
                     .HasForeignKey(r => r.TargetPostId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                entity.HasOne(r => r.TargetComment)
+                    .WithMany(comment => comment.Reports)
+                    .HasForeignKey(r => r.TargetCommentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasIndex(r => new
                 {
                     r.ReporterUserId,
@@ -159,6 +195,10 @@ namespace blogapp_server.Persistence.Context
                 entity.HasIndex(r => new { r.ReporterUserId, r.TargetUserId })
                     .IsUnique()
                     .HasFilter("\"TargetType\" = 1 AND \"Status\" IN (1, 2)");
+
+                entity.HasIndex(r => new { r.ReporterUserId, r.TargetCommentId })
+                    .IsUnique()
+                    .HasFilter("\"TargetType\" = 2 AND \"Status\" IN (1, 2)");
 
                 entity.HasIndex(r => new
                 {
@@ -178,8 +218,9 @@ namespace blogapp_server.Persistence.Context
 
                 entity.HasCheckConstraint(
                     "CK_ModerationActions_Target",
-                    "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL) OR " +
-                    "(\"TargetType\" = 1 AND \"TargetUserId\" IS NOT NULL)");
+                    "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL AND \"TargetCommentId\" IS NULL) OR " +
+                    "(\"TargetType\" = 1 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NOT NULL AND \"TargetCommentId\" IS NULL) OR " +
+                    "(\"TargetType\" = 2 AND \"TargetPostId\" IS NULL AND \"TargetCommentId\" IS NOT NULL)");
 
                 entity.Property(action => action.Note)
                     .HasMaxLength(1000);
@@ -204,9 +245,14 @@ namespace blogapp_server.Persistence.Context
                     .HasForeignKey(action => action.TargetUserId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                entity.HasOne(action => action.TargetComment)
+                    .WithMany(comment => comment.ModerationActions)
+                    .HasForeignKey(action => action.TargetCommentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasIndex(action => action.ReportId);
                 entity.HasIndex(action => action.ModeratorUserId);
-                entity.HasIndex(action => new { action.TargetType, action.TargetPostId, action.TargetUserId });
+                entity.HasIndex(action => new { action.TargetType, action.TargetPostId, action.TargetUserId, action.TargetCommentId });
                 entity.HasIndex(action => action.CreatedAt);
             });
                 

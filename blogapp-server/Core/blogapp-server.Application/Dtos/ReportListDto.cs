@@ -23,6 +23,9 @@ namespace blogapp_server.Application.Dtos
         public string? TargetUserName { get; set; }
         public string? TargetUserFullName { get; set; }
 
+        public int? TargetCommentId { get; set; }
+        public string? TargetCommentContentPreview { get; set; }
+
         public ReportReason Reason { get; set; }
         public Dictionary<ReportReason, int> ReasonCounts { get; set; } = new();
         public ReportStatus Status { get; set; }

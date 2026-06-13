@@ -1,58 +1,74 @@
-﻿using AutoMapper;
-using blogapp_server.Application.Common.Interfaces;
-using blogapp_server.Application.Exceptions;
+﻿using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
+using blogapp_server.Domain.Enums;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Comments.Commands.Create
 {
     public class CreateCommentsCommandHandler : IRequestHandler<CreateCommentsCommand, CreateCommentsCommandResponse>
     {
+        private const int CommentLimitPerMinute = 10;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public CreateCommentsCommandHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public CreateCommentsCommandHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
         public async Task<CreateCommentsCommandResponse> Handle(CreateCommentsCommand request, CancellationToken cancellationToken)
         {
-            var post = await _unitOfWork.PostRepository.GetByIdAsync(request.PostId);
-            if (post == null)
+            var postOwnerId = await _unitOfWork.PostRepository.GetVisibleOwnerIdAsync(request.PostId, cancellationToken);
+            if (!postOwnerId.HasValue)
             {
-                throw new NotFoundException("Yorum atılırken bir hata oluştu.");
+                throw new NotFoundException("Yorum yapılacak paylaşım bulunamadı.");
             }
 
-            var comment = _mapper.Map<Comment>(request);
-            comment.CreatedAt = DateTime.UtcNow;
-            comment.isActive = true;
-            comment.isDeleted = false;
-
-            await _unitOfWork.CommentRepository.AddAsync(comment);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            #region Notification
-            Notification notification = new()
+            var content = request.Content.Trim();
+            var now = DateTime.UtcNow;
+            var recentCommentCount = await _unitOfWork.CommentRepository.CountRecentByUserAsync(request.UserId, now.AddMinutes(-1), cancellationToken);
+            if (recentCommentCount >= CommentLimitPerMinute)
             {
-                Type = Domain.Enums.NotificationType.POST_COMMENTED,
-                Message = "Paylaşımınız yeni bir yorum aldı.",
-                UserId = post.UserId,
-                CreatedAt = DateTime.UtcNow,
-                isActive = true,
-                isDeleted = false,
-            };
-            await _unitOfWork.NotificationRepository.AddAsync(notification);
-            #endregion
+                throw new TooManyRequestsException("Bir dakika içinde en fazla 10 yorum oluşturabilirsiniz.");
+            }
 
-            return new CreateCommentsCommandResponse(Succeeded: true, Message:"Yorum başarıyla eklendi.");
+            var isDuplicate = await _unitOfWork.CommentRepository.HasRecentDuplicateAsync(request.UserId, request.PostId, content, now.AddSeconds(-60), cancellationToken);
+            if (isDuplicate)
+            {
+                throw new BadRequestException("Aynı yorumu kısa süre içinde tekrar gönderemezsiniz.");
+            }
+
+            var comment = new Comment
+            {
+                PostId = request.PostId,
+                UserId = request.UserId,
+                Content = content,
+                Status = CommentStatus.Published,
+                CreatedAt = now,
+                isActive = true,
+                isDeleted = false
+            };
+            await _unitOfWork.CommentRepository.AddAsync(comment);
+
+            if (postOwnerId.Value != request.UserId)
+            {
+                await _unitOfWork.NotificationRepository.AddAsync(new Notification
+                {
+                    Type = NotificationType.POST_COMMENTED,
+                    Message = "Paylaşımınız yeni bir yorum aldı.",
+                    UserId = postOwnerId.Value,
+                    ActorUserId = request.UserId,
+                    PostId = request.PostId,
+                    Comment = comment,
+                    CreatedAt = now,
+                    isActive = true,
+                    isDeleted = false
+                });
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var commentDto = await _unitOfWork.CommentRepository.GetDtoByIdAsync(comment.Id, cancellationToken) ?? throw new NotFoundException("Oluşturulan yorum bulunamadı.");
+            return new CreateCommentsCommandResponse(true, "Yorum başarıyla eklendi.", commentDto);
         }
     }
 }

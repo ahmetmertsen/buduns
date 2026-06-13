@@ -25,7 +25,7 @@ namespace blogapp_server.Application.Features.Report.Queries.GetReports
                 .GroupBy(report => new
                 {
                     report.TargetType,
-                    TargetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetUserId
+                    TargetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetType == ReportTargetType.User ? report.TargetUserId : report.TargetCommentId
                 })
                 .Select(group =>
                 {
@@ -33,6 +33,7 @@ namespace blogapp_server.Application.Features.Report.Queries.GetReports
                     var item = _mapper.Map<ReportListDto>(latestReport);
 
                     item.TargetPostContentPreview = CreateContentPreview(latestReport.TargetPost?.Content);
+                    item.TargetCommentContentPreview = CreateContentPreview(latestReport.TargetComment?.Content);
                     item.ReasonCounts = group
                         .GroupBy(report => report.Reason)
                         .ToDictionary(reasonGroup => reasonGroup.Key, reasonGroup => reasonGroup.Count());

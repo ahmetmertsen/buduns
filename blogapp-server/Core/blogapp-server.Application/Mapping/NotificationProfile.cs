@@ -13,7 +13,8 @@ namespace blogapp_server.Application.Mapping
     {
         public NotificationProfile()
         {
-            CreateMap<Notification, NotificationDto>();
+            CreateMap<Notification, NotificationDto>()
+                .ForMember(destination => destination.ActorUserName, options => options.MapFrom(source => source.ActorUser != null ? source.ActorUser.UserName : null));
         }
     }
 }

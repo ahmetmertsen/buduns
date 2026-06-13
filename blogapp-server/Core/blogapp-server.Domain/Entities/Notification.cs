@@ -16,5 +16,14 @@ namespace blogapp_server.Domain.Entities
 
         public int UserId { get; set; }
         public User User { get; set; }
+
+        public int? ActorUserId { get; set; }
+        public User? ActorUser { get; set; }
+        public int? PostId { get; set; }
+        public Post? Post { get; set; }
+        public int? CommentId { get; set; }
+        public Comment? Comment { get; set; }
+        public bool IsRead { get; set; }
+        public DateTime? ReadAt { get; set; }
     }
 }

@@ -12,6 +12,7 @@ namespace blogapp_server.Domain.Entities
         public ReportTargetType TargetType { get; set; }
         public int? TargetPostId { get; set; }
         public int? TargetUserId { get; set; }
+        public int? TargetCommentId { get; set; }
         public string? Note { get; set; }
         public DateTime? ExpiresAt { get; set; }
 
@@ -19,5 +20,6 @@ namespace blogapp_server.Domain.Entities
         public User ModeratorUser { get; set; } = null!;
         public Post? TargetPost { get; set; }
         public User? TargetUser { get; set; }
+        public Comment? TargetComment { get; set; }
     }
 }

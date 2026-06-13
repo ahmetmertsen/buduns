@@ -17,5 +17,7 @@ namespace blogapp_server.Domain.Enums
         ACCOUNT_BANNED,
         POST_HIDDEN,
         POST_REMOVED,
+        COMMENT_HIDDEN,
+        COMMENT_REMOVED,
     }
 }

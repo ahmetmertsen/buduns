@@ -18,6 +18,7 @@ namespace blogapp_server.Application.Mapping
                 .ForMember(destination => destination.TargetUserFullName,
                     options => options.MapFrom(source => source.TargetUser != null ? source.TargetUser.FullName : null))
                 .ForMember(destination => destination.TargetPostContentPreview, options => options.Ignore())
+                .ForMember(destination => destination.TargetCommentContentPreview, options => options.Ignore())
                 .ForMember(destination => destination.ReasonCounts, options => options.Ignore())
                 .ForMember(destination => destination.ReportCount, options => options.Ignore())
                 .ForMember(destination => destination.FirstReportDate, options => options.Ignore())
@@ -38,6 +39,9 @@ namespace blogapp_server.Application.Mapping
                     options => options.MapFrom(source => source.TargetUser != null ? source.TargetUser.FullName : null))
                 .ForMember(destination => destination.TargetUserEmail,
                     options => options.MapFrom(source => source.TargetUser != null ? source.TargetUser.Email : null))
+                .ForMember(destination => destination.TargetCommentContent, options => options.MapFrom(source => source.TargetComment != null ? source.TargetComment.Content : null))
+                .ForMember(destination => destination.TargetCommentUserId, options => options.MapFrom(source => source.TargetComment != null ? source.TargetComment.UserId : (int?)null))
+                .ForMember(destination => destination.TargetCommentUserName, options => options.MapFrom(source => source.TargetComment != null && source.TargetComment.User != null ? source.TargetComment.User.UserName : null))
                 .ForMember(destination => destination.ReviewedByUserName,
                     options => options.MapFrom(source => source.ReviewedByUser != null ? source.ReviewedByUser.UserName : null))
                 .ForMember(destination => destination.CreatedDate,

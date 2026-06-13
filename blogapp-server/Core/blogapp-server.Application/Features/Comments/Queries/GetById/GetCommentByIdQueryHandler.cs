@@ -1,36 +1,22 @@
-using AutoMapper;
-using blogapp_server.Application.Dtos;
+﻿using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Comments.Queries.GetById
 {
     public class GetCommentByIdQueryHandler : IRequestHandler<GetCommentByIdQuery, CommentDto>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public GetCommentByIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetCommentByIdQueryHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
         public async Task<CommentDto> Handle(GetCommentByIdQuery request, CancellationToken cancellationToken)
         {
-            var comment = await _unitOfWork.CommentRepository.GetByIdAsync(request.Id);
-            if (comment == null) 
-            {
-                throw new NotFoundException("Yorum bulunamad�!");
-            }
-            var response = _mapper.Map<CommentDto>(comment);
-            return response;
+            return await _unitOfWork.CommentRepository.GetDtoByIdAsync(request.Id, cancellationToken) ?? throw new NotFoundException("Yorum bulunamadı.");
         }
     }
 }

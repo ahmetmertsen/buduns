@@ -18,7 +18,10 @@ namespace blogapp_server.Persistence.Repositories
         public NotificationRepository(BlogAppDbContext context) : base(context) { _context = context; }
 
         public async Task<List<Notification>> GetAllNotificationsByUserIdAsync(int userId) => await _context.Notifications
-            .Where(c => c.UserId == userId)
+            .AsNoTracking()
+            .Include(notification => notification.ActorUser)
+            .Where(notification => notification.UserId == userId && notification.isActive && !notification.isDeleted)
+            .OrderByDescending(notification => notification.CreatedAt)
             .ToListAsync();
     }
 }

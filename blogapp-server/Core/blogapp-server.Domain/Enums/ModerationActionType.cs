@@ -7,6 +7,8 @@ namespace blogapp_server.Domain.Enums
         DeletePost = 2,
         WarnUser = 3,
         SuspendUser = 4,
-        BanUser = 5
+        BanUser = 5,
+        HideComment = 6,
+        DeleteComment = 7
     }
 }

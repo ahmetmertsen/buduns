@@ -50,6 +50,10 @@ namespace blogapp_server.Persistence.Repositories
                 .Include(post => post.Tags)
                 .FirstOrDefaultAsync(post => post.Id == id);
 
+        public Task<bool> ExistsVisibleAsync(int id, CancellationToken cancellationToken = default) => VisiblePosts().AnyAsync(post => post.Id == id, cancellationToken);
+
+        public Task<int?> GetVisibleOwnerIdAsync(int id, CancellationToken cancellationToken = default) => VisiblePosts().Where(post => post.Id == id).Select(post => (int?)post.UserId).FirstOrDefaultAsync(cancellationToken);
+
         public async Task<List<TopPostDto>> GetDailyTopPostsAsync(DateTime startDateUtc, DateTime endDateUtc, int limit, CancellationToken cancellationToken = default)
         {
             var safeLimit = Math.Clamp(limit, 1, 100);
@@ -61,9 +65,9 @@ namespace blogapp_server.Persistence.Repositories
                 {
                     Post = post,
                     DailyLikeCount = post.Likes.Count(like => like.CreatedAt >= startDateUtc && like.CreatedAt < endDateUtc && like.isActive && !like.isDeleted),
-                    DailyCommentCount = post.Comments.Count(comment => comment.CreatedAt >= startDateUtc && comment.CreatedAt < endDateUtc && comment.isActive && !comment.isDeleted),
+                    DailyCommentCount = post.Comments.Count(comment => comment.CreatedAt >= startDateUtc && comment.CreatedAt < endDateUtc && comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
                     LikeCount = post.Likes.Count(like => like.isActive && !like.isDeleted),
-                    CommentCount = post.Comments.Count(comment => comment.isActive && !comment.isDeleted),
+                    CommentCount = post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
                     BookmarkCount = post.Bookmarks.Count(bookmark => bookmark.isActive && !bookmark.isDeleted)
                 })
                 .Where(item => item.DailyLikeCount > 0 || item.DailyCommentCount > 0)

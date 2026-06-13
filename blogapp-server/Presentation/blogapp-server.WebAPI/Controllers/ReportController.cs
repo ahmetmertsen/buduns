@@ -1,4 +1,5 @@
 using blogapp_server.Application.Features.Report.Commands.CreatePostReport;
+using blogapp_server.Application.Features.Report.Commands.CreateCommentReport;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
 using blogapp_server.Application.Features.Report.Commands.CreateUserReport;
@@ -34,6 +35,15 @@ namespace blogapp_server.WebAPI.Controllers
         }
 
         [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Writing, Definition = "Create Comment Report")]
+        [HttpPost("createCommentReport")]
+        public async Task<IActionResult> CreateCommentReport([FromBody] CreateCommentReportCommand request)
+        {
+            var response = await _mediatR.Send(request);
+            return Ok(response);
+        }
+
+        [Authorize]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Writing, Definition = "Create User Report")]
         [HttpPost("createUserReport")]
         public async Task<IActionResult> CreateUserReport([FromBody] CreateUserReportCommand request)
@@ -42,7 +52,7 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Moderator")]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Reading, Definition = "Get Reports")]
         [HttpGet]
         public async Task<IActionResult> GetReports([FromQuery] GetReportsQuery request)
@@ -51,7 +61,7 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Moderator")]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Reading, Definition = "Get Report By Id")]
         [HttpGet]
         [Route("getById/{reportId}")]
@@ -61,7 +71,7 @@ namespace blogapp_server.WebAPI.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Moderator")]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Reports, ActionType = ActionType.Updating, Definition = "Review Report")]
         [HttpPost("review")]
         public async Task<IActionResult> ReviewReport([FromBody] ReviewReportCommand request)

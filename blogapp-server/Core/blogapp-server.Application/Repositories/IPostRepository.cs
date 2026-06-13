@@ -14,6 +14,8 @@ namespace blogapp_server.Application.Repositories
     {
         Task<List<Post?>> GetAllByTagIdAsync(int TagId);
         Task<Post?> GetByIdWithTagsAsync(int id);
+        Task<bool> ExistsVisibleAsync(int id, CancellationToken cancellationToken = default);
+        Task<int?> GetVisibleOwnerIdAsync(int id, CancellationToken cancellationToken = default);
         Task<List<TopPostDto>> GetDailyTopPostsAsync(DateTime startDateUtc, DateTime endDateUtc, int limit, CancellationToken cancellationToken = default);
     }
 }

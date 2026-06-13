@@ -1,32 +1,28 @@
-using AutoMapper;
-using blogapp_server.Application.Dtos;
+﻿using blogapp_server.Application.Dtos;
+using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Comments.Queries.GetByPostId
 {
-    public class GetCommentsByPostIdQueryHandler : IRequestHandler<GetCommentsByPostIdQuery, List<CommentDto>>
+    public class GetCommentsByPostIdQueryHandler : IRequestHandler<GetCommentsByPostIdQuery, PagedResponse<CommentDto>>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public GetCommentsByPostIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetCommentsByPostIdQueryHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
-        public async Task<List<CommentDto>> Handle(GetCommentsByPostIdQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<CommentDto>> Handle(GetCommentsByPostIdQuery request, CancellationToken cancellationToken)
         {
-            var comments = await _unitOfWork.CommentRepository.GetCommentsByPostIdAsync(request.PostId);
+            if (!await _unitOfWork.PostRepository.ExistsVisibleAsync(request.PostId, cancellationToken))
+            {
+                throw new NotFoundException("Paylaşım bulunamadı.");
+            }
 
-            var response = _mapper.Map<List<CommentDto>>(comments);
-            return response;
+            var result = await _unitOfWork.CommentRepository.GetPagedByPostIdAsync(request.PostId, request.Page, request.Size, cancellationToken);
+            return new PagedResponse<CommentDto> { Items = result.Items, Page = request.Page, Size = request.Size, TotalCount = result.TotalCount };
         }
     }
 }

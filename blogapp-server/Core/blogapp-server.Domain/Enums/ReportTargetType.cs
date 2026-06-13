@@ -9,6 +9,7 @@ namespace blogapp_server.Domain.Enums
     public enum ReportTargetType
     {
         Post,
-        User
+        User,
+        Comment
     }
 }

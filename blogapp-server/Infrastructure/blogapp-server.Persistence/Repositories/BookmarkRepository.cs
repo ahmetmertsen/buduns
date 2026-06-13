@@ -103,7 +103,7 @@ namespace blogapp_server.Persistence.Repositories
                             })
                             .ToList(),
                         LikeCount = bookmark.Post.Likes.Count(like => like.isActive && !like.isDeleted),
-                        CommentCount = bookmark.Post.Comments.Count(comment => comment.isActive && !comment.isDeleted),
+                        CommentCount = bookmark.Post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
                         BookmarkCount = bookmark.Post.Bookmarks.Count(item => item.isActive && !item.isDeleted)
                     }
                 })

@@ -16,6 +16,7 @@ namespace blogapp_server.Domain.Entities
         public ReportTargetType TargetType { get; set; }
         public int? TargetPostId { get; set; }
         public int? TargetUserId { get; set; }
+        public int? TargetCommentId { get; set; }
 
         public ReportReason Reason { get; set; }
         public string? Description { get; set; }
@@ -28,6 +29,7 @@ namespace blogapp_server.Domain.Entities
         public User ReporterUser { get; set; }
         public Post? TargetPost { get; set; }
         public User? TargetUser { get; set; }
+        public Comment? TargetComment { get; set; }
         public User? ReviewedByUser { get; set; }
         public ICollection<ModerationAction> ModerationActions { get; set; } = new List<ModerationAction>();
     }

@@ -27,6 +27,8 @@ namespace blogapp_server.Application.Repositories
 
         Task<bool> HasPendingUserReportAsync(int reporterUserId, int targetUserId);
 
+        Task<bool> HasPendingCommentReportAsync(int reporterUserId, int commentId, CancellationToken cancellationToken = default);
+
         Task<(List<Report> Reports, int TotalCount)> GetFilteredReportGroupsAsync(ReportStatus? status, ReportTargetType? targetType, ReportReason? reason, DateTime? fromDate, DateTime? toDate, int page, int size, CancellationToken cancellationToken = default);
 
         Task<List<Report>> GetOpenReportsForTargetAsync(ReportTargetType targetType, int targetId, CancellationToken cancellationToken = default);

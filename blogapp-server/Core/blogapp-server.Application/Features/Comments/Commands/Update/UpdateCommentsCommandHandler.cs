@@ -1,42 +1,48 @@
-﻿using AutoMapper;
-using blogapp_server.Application.Exceptions;
+﻿using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
-using blogapp_server.Domain.Entities;
+using blogapp_server.Domain.Enums;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Comments.Commands.Update
 {
     public class UpdateCommentsCommandHandler : IRequestHandler<UpdateCommentsCommand, UpdateCommentsCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public UpdateCommentsCommandHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public UpdateCommentsCommandHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
         public async Task<UpdateCommentsCommandResponse> Handle(UpdateCommentsCommand request, CancellationToken cancellationToken)
         {
-            var comment = await _unitOfWork.CommentRepository.GetByIdAsync(request.Id);
+            var comment = await _unitOfWork.CommentRepository.GetForMutationAsync(request.Id, cancellationToken);
             if (comment == null)
             {
-                throw new NotFoundException("Yorum bulunamadı!");
+                throw new NotFoundException("Yorum bulunamadı.");
             }
+
             if (comment.UserId != request.UserId)
             {
-                throw new UnauthorizedAccesException("Bu yorumu güncelleme yetkiniz yok.");
+                throw new ForbiddenException("Bu yorumu güncelleme yetkiniz yok.");
             }
-            _mapper.Map(request, comment);
+
+            if (comment.Status != CommentStatus.Published || !comment.isActive || comment.isDeleted)
+            {
+                throw new BadRequestException("Yayınlanmamış bir yorum güncellenemez.");
+            }
+
+            if (comment.Post.Status != PostStatus.Published || !comment.Post.isPublished || !comment.Post.isActive || comment.Post.isDeleted)
+            {
+                throw new BadRequestException("Görünür olmayan bir paylaşımdaki yorum güncellenemez.");
+            }
+
+            comment.Content = request.Content.Trim();
             comment.UpdateAt = DateTime.UtcNow;
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return new UpdateCommentsCommandResponse(Succeeded: true, Message: "Mesaj başarıyla güncellendi");
+
+            var commentDto = await _unitOfWork.CommentRepository.GetDtoByIdAsync(comment.Id, cancellationToken) ?? throw new NotFoundException("Güncellenen yorum bulunamadı.");
+            return new UpdateCommentsCommandResponse(true, "Yorum başarıyla güncellendi.", commentDto);
         }
     }
 }

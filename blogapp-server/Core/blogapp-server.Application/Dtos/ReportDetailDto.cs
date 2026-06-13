@@ -26,6 +26,11 @@ namespace blogapp_server.Application.Dtos
         public string? TargetUserFullName { get; set; }
         public string? TargetUserEmail { get; set; }
 
+        public int? TargetCommentId { get; set; }
+        public string? TargetCommentContent { get; set; }
+        public int? TargetCommentUserId { get; set; }
+        public string? TargetCommentUserName { get; set; }
+
         public ReportReason Reason { get; set; }
         public string? Description { get; set; }
 
