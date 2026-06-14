@@ -245,33 +245,42 @@ namespace blogapp_server.Persistence.Services
 
         public async Task<List<UserDto>> GetAllUsersAsync()
         {
-            var users = await _userManager.Users.ToListAsync();
-            var response = _mapper.Map<List<UserDto>>(users);
-
-            return response;
+            return await ProjectUsers().ToListAsync();
         }
 
         public async Task<UserDto> GetUserById(int userId)
         {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
+            var user = await ProjectUsers().FirstOrDefaultAsync(item => item.Id == userId);
             if (user == null)
             {
                 throw new NotFoundException("Kullanıcı bulunamadı.");
             }
-            var response = _mapper.Map<UserDto>(user);
-            return response;
+
+            return user;
         }
 
         public async Task<UserDto> GetUserByUserName(string userName)
         {
-            var user = await _userManager.FindByNameAsync(userName);
-            if (user == null)
+            var normalizedUserName = _userManager.NormalizeName(userName);
+            var userId = await _userManager.Users.AsNoTracking().Where(item => item.NormalizedUserName == normalizedUserName).Select(item => (int?)item.Id).FirstOrDefaultAsync();
+            if (userId == null)
             {
                 throw new NotFoundException("Kullanıcı bulunamadı.");
             }
-            var response = _mapper.Map<UserDto>(user);
-            return response;
+
+            return await ProjectUsers().FirstAsync(item => item.Id == userId.Value);
         }
+
+        private IQueryable<UserDto> ProjectUsers() => _userManager.Users.AsNoTracking().Select(user => new UserDto
+        {
+            Id = user.Id,
+            UserName = user.UserName!,
+            FullName = user.FullName,
+            Bio = user.Bio,
+            ImageUrl = user.ImageUrl,
+            FollowerCount = user.Followers.Count(follow => follow.isActive && !follow.isDeleted && follow.FollowerUser.Status != Domain.Enums.UserStatus.Banned),
+            FollowingCount = user.Followings.Count(follow => follow.isActive && !follow.isDeleted && follow.FollowingUser.Status != Domain.Enums.UserStatus.Banned)
+        });
 
         public async Task AssignRoleToUserAsync(int userId, string[] roles, CancellationToken cancellationToken)
         {

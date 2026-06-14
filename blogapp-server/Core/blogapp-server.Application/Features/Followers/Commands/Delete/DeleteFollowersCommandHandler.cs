@@ -1,35 +1,30 @@
-﻿using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace blogapp_server.Application.Features.Followers.Commands.Delete
 {
     public class DeleteFollowersCommandHandler : IRequestHandler<DeleteFollowersCommand, DeleteFollowersCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<DeleteFollowersCommandHandler> _logger;
 
-        public DeleteFollowersCommandHandler(IUnitOfWork unitOfWork) 
+        public DeleteFollowersCommandHandler(IUnitOfWork unitOfWork, ILogger<DeleteFollowersCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<DeleteFollowersCommandResponse> Handle(DeleteFollowersCommand request, CancellationToken cancellationToken)
         {
-            var follow = await _unitOfWork.FollowerRepository.GetFollowAsync(request.UserId, request.FollowingId);
-            if (follow == null)
+            var deleted = await _unitOfWork.FollowerRepository.DeleteByUsersAsync(request.UserId, request.FollowingId, cancellationToken);
+            if (deleted)
             {
-                throw new NotFoundException("Takip ilişkisi bulunamadı!");
+                _logger.LogInformation("User unfollowed. FollowerUserId: {FollowerUserId}, FollowingUserId: {FollowingUserId}", request.UserId, request.FollowingId);
             }
 
-            _unitOfWork.FollowerRepository.Delete(follow);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return new DeleteFollowersCommandResponse(Succeeded: true, Message: "Takip bırakıldı.");
+            var message = deleted ? "Takip bırakıldı." : "Kullanıcı zaten takip edilmiyor.";
+            return new DeleteFollowersCommandResponse(Succeeded: true, Message: message);
         }
     }
 }

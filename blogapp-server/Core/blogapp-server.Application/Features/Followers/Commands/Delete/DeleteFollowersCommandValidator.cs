@@ -6,8 +6,7 @@ namespace blogapp_server.Application.Features.Followers.Commands.Delete
     {
         public DeleteFollowersCommandValidator()
         {
-            RuleFor(x => x.FollowingId)
-                .GreaterThan(0).WithMessage("Following Id 0'dan büyük olmalıdır.");
+            RuleFor(x => x.FollowingId).GreaterThan(0).WithMessage("Following Id 0'dan büyük olmalıdır.");
         }
     }
 }

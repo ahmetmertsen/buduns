@@ -6,8 +6,7 @@ namespace blogapp_server.Application.Features.Followers.Commands.Create
     {
         public CreateFollowersCommandValidator()
         {
-            RuleFor(x => x.FollowingId)
-                .GreaterThan(0).WithMessage("Following Id 0'dan büyük olmalıdır.");
+            RuleFor(x => x.FollowingId).GreaterThan(0).WithMessage("Following Id 0'dan büyük olmalıdır.");
         }
     }
 }

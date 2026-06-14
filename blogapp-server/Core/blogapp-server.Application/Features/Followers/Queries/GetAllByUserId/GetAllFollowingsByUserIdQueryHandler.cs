@@ -1,31 +1,34 @@
-using AutoMapper;
 using blogapp_server.Application.Dtos;
+using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Domain.Entities.Identity;
+using blogapp_server.Domain.Enums;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 
 namespace blogapp_server.Application.Features.Followers.Queries.GetAllByUserId
 {
-    public class GetAllFollowingsByUserIdQueryHandler : IRequestHandler<GetAllFollowingsByUserIdQuery, List<FollowerDto>>
+    public class GetAllFollowingsByUserIdQueryHandler : IRequestHandler<GetAllFollowingsByUserIdQuery, PagedResponse<FollowerDto>>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly UserManager<User> _userManager;
 
-        public GetAllFollowingsByUserIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetAllFollowingsByUserIdQueryHandler(IUnitOfWork unitOfWork, UserManager<User> userManager)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _userManager = userManager;
         }
 
-        public async Task<List<FollowerDto>> Handle(GetAllFollowingsByUserIdQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<FollowerDto>> Handle(GetAllFollowingsByUserIdQuery request, CancellationToken cancellationToken)
         {
-            var followings = await _unitOfWork.FollowerRepository.GetAllFollowingsByUserIdAsync(request.UserId);
-            var response = _mapper.Map<List<FollowerDto>>(followings);
-            return response;
+            var user = await _userManager.FindByIdAsync(request.UserId.ToString());
+            if (user == null || user.Status == UserStatus.Banned)
+            {
+                throw new NotFoundException("Kullanıcı bulunamadı.");
+            }
+
+            var result = await _unitOfWork.FollowerRepository.GetPagedFollowingsByUserIdAsync(request.UserId, request.Page, request.Size, cancellationToken);
+            return new PagedResponse<FollowerDto> { Items = result.Items, Page = request.Page, Size = request.Size, TotalCount = result.TotalCount };
         }
     }
 }

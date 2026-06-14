@@ -30,7 +30,9 @@ namespace blogapp_server.Application.Mapping
             CreateMap<UpdateUserPasswordCommand, User>();
 
             //Dto
-            CreateMap<User, UserDto>();
+            CreateMap<User, UserDto>()
+                .ForMember(destination => destination.FollowerCount, options => options.Ignore())
+                .ForMember(destination => destination.FollowingCount, options => options.Ignore());
         }
     }
 }

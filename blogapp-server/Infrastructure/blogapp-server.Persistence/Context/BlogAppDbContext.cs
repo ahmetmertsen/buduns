@@ -100,6 +100,8 @@ namespace blogapp_server.Persistence.Context
 
             modelBuilder.Entity<Follower>(entity =>
             {
+                entity.HasCheckConstraint("CK_Followers_DifferentUsers", "\"FollowerId\" <> \"FollowingId\"");
+
                 entity.HasOne(f => f.FollowerUser)
                     .WithMany(u => u.Followings)
                     .HasForeignKey(f => f.FollowerId)

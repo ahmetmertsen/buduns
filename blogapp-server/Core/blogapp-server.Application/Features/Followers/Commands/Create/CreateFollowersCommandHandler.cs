@@ -1,4 +1,3 @@
-﻿using AutoMapper;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
@@ -6,11 +5,7 @@ using blogapp_server.Domain.Entities.Identity;
 using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace blogapp_server.Application.Features.Followers.Commands.Create
 {
@@ -18,11 +13,13 @@ namespace blogapp_server.Application.Features.Followers.Commands.Create
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<User> _userManager;
+        private readonly ILogger<CreateFollowersCommandHandler> _logger;
 
-        public CreateFollowersCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager)
+        public CreateFollowersCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<CreateFollowersCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
+            _logger = logger;
         }
 
         public async Task<CreateFollowersCommandResponse> Handle(CreateFollowersCommand request, CancellationToken cancellationToken)
@@ -31,10 +28,16 @@ namespace blogapp_server.Application.Features.Followers.Commands.Create
             {
                 throw new BadRequestException("Kullanıcı kendisini takip edemez!");
             }
-            var isExits = await _unitOfWork.FollowerRepository.IsFollowExistsAsync(request.UserId, request.FollowingId);
-            if (isExits == true)
+
+            var followingUser = await _userManager.FindByIdAsync(request.FollowingId.ToString());
+            if (followingUser == null)
             {
-                throw new BadRequestException("Bu kullanıcı zaten takip ediliyor.");
+                throw new NotFoundException("Takip edilecek kullanıcı bulunamadı.");
+            }
+
+            if (followingUser.Status == UserStatus.Banned)
+            {
+                throw new BadRequestException("Bu kullanıcı takip edilemez.");
             }
 
             var follow = new Follower
@@ -46,26 +49,25 @@ namespace blogapp_server.Application.Features.Followers.Commands.Create
                 isDeleted = false
             };
 
-            await _unitOfWork.FollowerRepository.AddAsync(follow);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            #region Takip edilen kişiye bildirim gönderme
-            // Takip eden kullanıcı
-            var followerUser = await _userManager.FindByIdAsync(Convert.ToString(request.UserId));
-
-            Notification notification = new()
+            var notification = new Notification
             {
                 Type = NotificationType.NEW_FOLLOWER,
-                Message = $"{followerUser.UserName} sizi takip etmeye başladı",
+                Message = "Sizi takip etmeye başladı.",
                 UserId = request.FollowingId,
+                ActorUserId = request.UserId,
                 CreatedAt = DateTime.UtcNow,
                 isActive = true,
                 isDeleted = false
             };
-            await _unitOfWork.NotificationRepository.AddAsync(notification);
-            #endregion
 
-            return new CreateFollowersCommandResponse(Succeeded: true, Message: "Kullanıcı takip edildi.");
+            var result = await _unitOfWork.FollowerRepository.CreateIfNotExistsAsync(follow, notification, cancellationToken);
+            if (result.Created)
+            {
+                _logger.LogInformation("User followed. FollowerUserId: {FollowerUserId}, FollowingUserId: {FollowingUserId}, FollowId: {FollowId}", request.UserId, request.FollowingId, result.Follower.Id);
+            }
+
+            var message = result.Created ? "Kullanıcı takip edildi." : "Bu kullanıcı zaten takip ediliyor.";
+            return new CreateFollowersCommandResponse(Succeeded: true, Message: message, FollowId: result.Follower.Id, AlreadyFollowing: !result.Created);
         }
     }
 }

@@ -16,7 +16,13 @@ namespace blogapp_server.Application.Mapping
         {
             CreateMap<CreateFollowersCommand, Follower>();
 
-            CreateMap<Follower, FollowerDto>();
+            CreateMap<Follower, FollowerDto>()
+                .ForMember(destination => destination.UserId, options => options.MapFrom(source => source.FollowingId))
+                .ForMember(destination => destination.UserName, options => options.Ignore())
+                .ForMember(destination => destination.FullName, options => options.Ignore())
+                .ForMember(destination => destination.Bio, options => options.Ignore())
+                .ForMember(destination => destination.ImageUrl, options => options.Ignore())
+                .ForMember(destination => destination.FollowedAt, options => options.MapFrom(source => source.CreatedAt));
         }
     }
 }

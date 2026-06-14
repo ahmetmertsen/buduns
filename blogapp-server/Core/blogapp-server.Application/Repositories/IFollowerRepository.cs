@@ -1,21 +1,15 @@
-﻿using blogapp_server.Application.Repositories.Common;
+using blogapp_server.Application.Dtos;
+using blogapp_server.Application.Repositories.Common;
 using blogapp_server.Domain.Entities;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Repositories
 {
     public interface IFollowerRepository : IRepository<Follower>
     {
-        Task<bool> IsFollowExistsAsync(int followerId, int followingId);
-        Task<Follower?> GetFollowAsync(int followerId, int followingId);
-        EntityEntry<Follower> Delete(Follower entity);
-        Task<List<Follower>> GetAllFollowersByUserIdAsync(int userId);
-        Task<List<Follower>> GetAllFollowingsByUserIdAsync(int userId);
+        Task<(Follower Follower, bool Created)> CreateIfNotExistsAsync(Follower follower, Notification notification, CancellationToken cancellationToken);
+        Task<bool> DeleteByUsersAsync(int followerId, int followingId, CancellationToken cancellationToken);
+        Task<Follower?> GetByUsersAsync(int followerId, int followingId, CancellationToken cancellationToken);
+        Task<(List<FollowerDto> Items, int TotalCount)> GetPagedFollowersByUserIdAsync(int userId, int page, int size, CancellationToken cancellationToken);
+        Task<(List<FollowerDto> Items, int TotalCount)> GetPagedFollowingsByUserIdAsync(int userId, int page, int size, CancellationToken cancellationToken);
     }
 }
