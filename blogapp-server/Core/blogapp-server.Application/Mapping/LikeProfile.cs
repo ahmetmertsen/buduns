@@ -16,7 +16,11 @@ namespace blogapp_server.Application.Mapping
         {
             CreateMap<CreateLikesCommand, Like>();
 
-            CreateMap<Like, LikeDto>();
+            CreateMap<Like, LikeDto>()
+                .ForMember(destination => destination.UserName, options => options.MapFrom(source => source.User.UserName))
+                .ForMember(destination => destination.FullName, options => options.MapFrom(source => source.User.FullName))
+                .ForMember(destination => destination.ImageUrl, options => options.MapFrom(source => source.User.ImageUrl))
+                .ForMember(destination => destination.LikedAt, options => options.MapFrom(source => source.CreatedAt));
         }
     }
 }

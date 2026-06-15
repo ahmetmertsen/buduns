@@ -24,12 +24,9 @@ namespace blogapp_server.Application.Mapping
                 .ForMember(dest => dest.Tags, opt => opt.Ignore());
 
             CreateMap<Post, PostDto>()
-                .ForMember(dest => dest.LikeCount,
-                    opt => opt.MapFrom(src => src.Likes.Count))
-                .ForMember(dest => dest.CommentCount,
-                    opt => opt.MapFrom(src => src.Comments.Count(comment => comment.Status == Domain.Enums.CommentStatus.Published && comment.isActive && !comment.isDeleted)))
-                .ForMember(dest => dest.BookmarkCount,
-                    opt => opt.MapFrom(src => src.Bookmarks.Count));
+                .ForMember(dest => dest.LikeCount, opt => opt.MapFrom(src => src.Likes.Count(like => like.isActive && !like.isDeleted && like.User.Status != Domain.Enums.UserStatus.Banned)))
+                .ForMember(dest => dest.CommentCount, opt => opt.MapFrom(src => src.Comments.Count(comment => comment.Status == Domain.Enums.CommentStatus.Published && comment.isActive && !comment.isDeleted)))
+                .ForMember(dest => dest.BookmarkCount, opt => opt.MapFrom(src => src.Bookmarks.Count));
         }
     }
 }

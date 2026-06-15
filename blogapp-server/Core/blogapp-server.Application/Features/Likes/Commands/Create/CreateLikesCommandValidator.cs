@@ -6,8 +6,7 @@ namespace blogapp_server.Application.Features.Likes.Commands.Create
     {
         public CreateLikesCommandValidator()
         {
-            RuleFor(x => x.PostId)
-                .GreaterThan(0).WithMessage("Post Id 0'dan büyük olmalıdır.");
+            RuleFor(x => x.PostId).GreaterThan(0).WithMessage("Post Id 0'dan büyük olmalıdır.");
         }
     }
 }

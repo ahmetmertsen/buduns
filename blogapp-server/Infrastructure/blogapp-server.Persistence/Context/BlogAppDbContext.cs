@@ -85,6 +85,13 @@ namespace blogapp_server.Persistence.Context
                     .HasDatabaseName("UX_Bookmarks_UserId_PostId");
             });
 
+            modelBuilder.Entity<Like>(entity =>
+            {
+                entity.HasIndex(like => new { like.UserId, like.PostId })
+                    .IsUnique()
+                    .HasDatabaseName("UX_Likes_UserId_PostId");
+            });
+
             modelBuilder.Entity<Comment>(entity =>
             {
                 entity.Property(comment => comment.Content)
@@ -138,6 +145,7 @@ namespace blogapp_server.Persistence.Context
                     .OnDelete(DeleteBehavior.SetNull);
 
                 entity.HasIndex(notification => new { notification.UserId, notification.IsRead, notification.CreatedAt });
+                entity.HasIndex(notification => new { notification.Type, notification.UserId, notification.ActorUserId, notification.PostId, notification.CreatedAt });
             });
 
 

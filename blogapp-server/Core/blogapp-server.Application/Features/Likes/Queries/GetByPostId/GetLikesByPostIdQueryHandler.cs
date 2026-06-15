@@ -1,32 +1,28 @@
-using AutoMapper;
 using blogapp_server.Application.Dtos;
+using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Likes.Queries.GetByPostId
 {
-    public class GetLikesByPostIdQueryHandler : IRequestHandler<GetLikesByPostIdQuery, List<LikeDto>>
+    public class GetLikesByPostIdQueryHandler : IRequestHandler<GetLikesByPostIdQuery, PagedResponse<LikeDto>>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public GetLikesByPostIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetLikesByPostIdQueryHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
-        public async Task<List<LikeDto>> Handle(GetLikesByPostIdQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<LikeDto>> Handle(GetLikesByPostIdQuery request, CancellationToken cancellationToken)
         {
-            var likes = await _unitOfWork.LikeRepository.GetLikesByPostIdAsync(request.PostId);
+            if (!await _unitOfWork.PostRepository.ExistsVisibleAsync(request.PostId, cancellationToken))
+            {
+                throw new NotFoundException("Paylaşım bulunamadı.");
+            }
 
-            var response =_mapper.Map<List<LikeDto>>(likes);
-            return response;
+            var result = await _unitOfWork.LikeRepository.GetPagedByPostIdAsync(request.PostId, request.Page, request.Size, cancellationToken);
+            return new PagedResponse<LikeDto> { Items = result.Items, Page = request.Page, Size = request.Size, TotalCount = result.TotalCount };
         }
     }
 }

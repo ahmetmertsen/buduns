@@ -22,6 +22,7 @@ namespace blogapp_server.Persistence.Repositories
             VisiblePosts()
                 .Include(post => post.Tags)
                 .Include(post => post.Likes)
+                .ThenInclude(like => like.User)
                 .Include(post => post.Comments)
                 .Include(post => post.Bookmarks)
                 .ToListAsync();
@@ -30,6 +31,7 @@ namespace blogapp_server.Persistence.Repositories
             VisiblePosts()
                 .Include(post => post.Tags)
                 .Include(post => post.Likes)
+                .ThenInclude(like => like.User)
                 .Include(post => post.Comments)
                 .Include(post => post.Bookmarks)
                 .FirstOrDefaultAsync(post => post.Id == id);
@@ -37,6 +39,10 @@ namespace blogapp_server.Persistence.Repositories
         public Task<List<Post?>> GetAllByTagIdAsync(int tagId) =>
             VisiblePosts()
                 .Include(post => post.Tags)
+                .Include(post => post.Likes)
+                .ThenInclude(like => like.User)
+                .Include(post => post.Comments)
+                .Include(post => post.Bookmarks)
                 .Where(post => post.Tags.Any(tag => tag.Id == tagId))
                 .Cast<Post?>()
                 .ToListAsync();
@@ -64,10 +70,10 @@ namespace blogapp_server.Persistence.Repositories
                 .Select(post => new
                 {
                     Post = post,
-                    DailyLikeCount = post.Likes.Count(like => like.CreatedAt >= startDateUtc && like.CreatedAt < endDateUtc && like.isActive && !like.isDeleted),
-                    DailyCommentCount = post.Comments.Count(comment => comment.CreatedAt >= startDateUtc && comment.CreatedAt < endDateUtc && comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
-                    LikeCount = post.Likes.Count(like => like.isActive && !like.isDeleted),
-                    CommentCount = post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
+                    DailyLikeCount = post.Likes.Count(like => like.UserId != post.UserId && like.User.Status != UserStatus.Banned && like.CreatedAt >= startDateUtc && like.CreatedAt < endDateUtc && like.isActive && !like.isDeleted),
+                    DailyCommentCount = post.Comments.Count(comment => comment.User.Status != UserStatus.Banned && comment.CreatedAt >= startDateUtc && comment.CreatedAt < endDateUtc && comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
+                    LikeCount = post.Likes.Count(like => like.User.Status != UserStatus.Banned && like.isActive && !like.isDeleted),
+                    CommentCount = post.Comments.Count(comment => comment.User.Status != UserStatus.Banned && comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
                     BookmarkCount = post.Bookmarks.Count(bookmark => bookmark.isActive && !bookmark.isDeleted)
                 })
                 .Where(item => item.DailyLikeCount > 0 || item.DailyCommentCount > 0)

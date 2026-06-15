@@ -1,56 +1,39 @@
-﻿using AutoMapper;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
+using blogapp_server.Domain.Enums;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Likes.Commands.Create
 {
     public class CreateLikesCommandHandler : IRequestHandler<CreateLikesCommand, CreateLikesCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public CreateLikesCommandHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public CreateLikesCommandHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
         public async Task<CreateLikesCommandResponse> Handle(CreateLikesCommand request, CancellationToken cancellationToken)
         {
-            var like = _mapper.Map<Like>(request);
-            like.isActive = true;
-            like.CreatedAt = DateTime.UtcNow;
-            like.isDeleted = false;
-
-            #region Like notification
-            var post = await _unitOfWork.PostRepository.GetByIdAsync(request.PostId);
-            if (post == null) 
+            var postOwnerId = await _unitOfWork.PostRepository.GetVisibleOwnerIdAsync(request.PostId, cancellationToken);
+            if (!postOwnerId.HasValue)
             {
-                throw new NotFoundException("Bir hata oluştu.");
+                throw new NotFoundException("Beğenilecek paylaşım bulunamadı.");
             }
 
-            Notification notification = new()
+            var now = DateTime.UtcNow;
+            var like = new Like { UserId = request.UserId, PostId = request.PostId, CreatedAt = now, isActive = true, isDeleted = false };
+            Notification? notification = null;
+            if (postOwnerId.Value != request.UserId)
             {
-                Type = Domain.Enums.NotificationType.POST_LIKED,
-                Message = "Paylaşımınız yeni bir beğeni aldı.",
-                UserId = post.UserId,
-                CreatedAt = DateTime.UtcNow,
-                isActive = true,
-                isDeleted = false,
-            };
-            await _unitOfWork.NotificationRepository.AddAsync(notification);
-            #endregion
+                notification = new Notification { Type = NotificationType.POST_LIKED, Message = "Paylaşımınız yeni bir beğeni aldı.", UserId = postOwnerId.Value, ActorUserId = request.UserId, PostId = request.PostId, CreatedAt = now, isActive = true, isDeleted = false };
+            }
 
-            await _unitOfWork.LikeRepository.AddAsync(like);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return new CreateLikesCommandResponse(true, "Like başarıyla atılmıştır.");
+            var result = await _unitOfWork.LikeRepository.CreateIfNotExistsAsync(like, notification, cancellationToken);
+            var message = result.Created ? "Paylaşım beğenildi." : "Paylaşım zaten beğenilmiş.";
+            return new CreateLikesCommandResponse(Succeeded: true, Message: message, LikeId: result.Like.Id, AlreadyLiked: !result.Created);
         }
     }
 }

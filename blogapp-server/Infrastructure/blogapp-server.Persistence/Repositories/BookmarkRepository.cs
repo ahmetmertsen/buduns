@@ -47,11 +47,7 @@ namespace blogapp_server.Persistence.Repositories
             {
                 _context.Entry(bookmark).State = EntityState.Detached;
 
-                existingBookmark = await _context.Bookmarks
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(
-                        item => item.UserId == bookmark.UserId && item.PostId == bookmark.PostId,
-                        cancellationToken);
+                existingBookmark = await _context.Bookmarks.AsNoTracking().FirstOrDefaultAsync(item => item.UserId == bookmark.UserId && item.PostId == bookmark.PostId, cancellationToken);
 
                 if (existingBookmark != null)
                 {
@@ -102,7 +98,7 @@ namespace blogapp_server.Persistence.Repositories
                                 Name = tag.Name
                             })
                             .ToList(),
-                        LikeCount = bookmark.Post.Likes.Count(like => like.isActive && !like.isDeleted),
+                        LikeCount = bookmark.Post.Likes.Count(like => like.isActive && !like.isDeleted && like.User.Status != UserStatus.Banned),
                         CommentCount = bookmark.Post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
                         BookmarkCount = bookmark.Post.Bookmarks.Count(item => item.isActive && !item.isDeleted)
                     }
@@ -113,19 +109,7 @@ namespace blogapp_server.Persistence.Repositories
             return (items, totalCount);
         }
 
-        public Task<Bookmark?> GetByUserAndPostAsync(int userId, int postId, CancellationToken cancellationToken) =>
-            _context.Bookmarks
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    bookmark => bookmark.UserId == userId &&
-                                bookmark.PostId == postId &&
-                                bookmark.isActive &&
-                                !bookmark.isDeleted &&
-                                bookmark.Post.Status == PostStatus.Published &&
-                                bookmark.Post.isPublished &&
-                                bookmark.Post.isActive &&
-                                !bookmark.Post.isDeleted,
-                    cancellationToken);
+        public Task<Bookmark?> GetByUserAndPostAsync(int userId, int postId, CancellationToken cancellationToken) => _context.Bookmarks.AsNoTracking().FirstOrDefaultAsync(bookmark => bookmark.UserId == userId && bookmark.PostId == postId && bookmark.isActive && !bookmark.isDeleted && bookmark.Post.Status == PostStatus.Published && bookmark.Post.isPublished && bookmark.Post.isActive && !bookmark.Post.isDeleted, cancellationToken);
 
         private IQueryable<Bookmark> VisibleBookmarks(int userId) =>
             _context.Bookmarks.Where(bookmark =>

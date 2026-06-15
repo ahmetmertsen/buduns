@@ -1,20 +1,20 @@
-using blogapp_server.Application.Features.Likes.Commands.Create;
 using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Common.CustomAttrributes;
+using blogapp_server.Application.Features.Likes.Commands.Create;
 using blogapp_server.Application.Features.Likes.Commands.Delete;
-using blogapp_server.Application.Features.Likes.Queries.GetById;
 using blogapp_server.Application.Features.Likes.Queries.GetByPostId;
-using blogapp_server.Application.Features.Likes.Queries.GetByUserId;
+using blogapp_server.Application.Features.Likes.Queries.GetMyLikes;
+using blogapp_server.Application.Features.Likes.Queries.GetStatus;
 using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace blogapp_server.WebAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class LikeController : ControllerBase
     {
         private readonly IMediator _mediatR;
@@ -24,56 +24,39 @@ namespace blogapp_server.WebAPI.Controllers
             _mediatR = mediatR;
         }
 
-        [Authorize]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Writing, Definition = "Create Like")]
-        [HttpPost]
-        [Route("create")]
-        public async Task<IActionResult> Create([FromBody] CreateLikesCommand request)
+        [HttpPost("{postId:int}")]
+        public async Task<IActionResult> Create(int postId)
         {
-            var response = await _mediatR.Send(request);
-            return Ok(response);
+            return Ok(await _mediatR.Send(new CreateLikesCommand { PostId = postId }));
         }
 
-        [Authorize]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Deleting, Definition = "Delete Like")]
-        [HttpDelete]
-        [Route("delete")]
-        public async Task<IActionResult> Delete([FromBody] DeleteLikesCommand request)
+        [HttpDelete("{postId:int}")]
+        public async Task<IActionResult> Delete(int postId)
         {
-            var response = await _mediatR.Send(request);
-            return Ok(response);
+            return Ok(await _mediatR.Send(new DeleteLikesCommand { PostId = postId }));
         }
 
-
-        [Authorize(Roles = "User")]
-        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get Like By Id")]
-        [HttpGet]
-        [Route("getById/{id}")]
-        public async Task<IActionResult> GetById(int id)
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get Like Status")]
+        [HttpGet("status/{postId:int}")]
+        public async Task<IActionResult> GetStatus(int postId)
         {
-            var response = await _mediatR.Send(new GetLikeByIdQuery(id));
-            return Ok(response);
+            return Ok(await _mediatR.Send(new GetLikeStatusQuery { PostId = postId }));
         }
 
-        [Authorize]
-        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get Likes By User Id")]
-        [HttpGet]
-        [Route("getByUserId")]
-        public async Task<IActionResult> GetByUserId(int userId)
-        {
-            var response = await _mediatR.Send(new GetLikesByUserIdQuery { UserId = userId});
-            return Ok(response);
-        }
-
-        [Authorize(Roles = "User")]
         [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get Likes By Post Id")]
-        [HttpGet]
-        [Route("getByPostId")]
-        public async Task<IActionResult> GetByPostId(int postId)
+        [HttpGet("post/{postId:int}")]
+        public async Task<IActionResult> GetByPostId(int postId, [FromQuery] int page = 1, [FromQuery] int size = 20)
         {
-            var response = await _mediatR.Send(new GetLikesByPostIdQuery { PostId = postId });
-            return Ok(response);
+            return Ok(await _mediatR.Send(new GetLikesByPostIdQuery { PostId = postId, Page = page, Size = size }));
         }
 
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Likes, ActionType = ActionType.Reading, Definition = "Get My Liked Posts")]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyLikedPosts([FromQuery] int page = 1, [FromQuery] int size = 20)
+        {
+            return Ok(await _mediatR.Send(new GetMyLikedPostsQuery { Page = page, Size = size }));
+        }
     }
 }
