@@ -1,5 +1,7 @@
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Dtos;
 using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Entities.Identity;
 using blogapp_server.Domain.Enums;
@@ -14,12 +16,14 @@ namespace blogapp_server.Application.Features.Followers.Commands.Create
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<CreateFollowersCommandHandler> _logger;
+        private readonly INotificationService _notificationService;
 
-        public CreateFollowersCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<CreateFollowersCommandHandler> logger)
+        public CreateFollowersCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<CreateFollowersCommandHandler> logger, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         public async Task<CreateFollowersCommandResponse> Handle(CreateFollowersCommand request, CancellationToken cancellationToken)
@@ -49,16 +53,7 @@ namespace blogapp_server.Application.Features.Followers.Commands.Create
                 isDeleted = false
             };
 
-            var notification = new Notification
-            {
-                Type = NotificationType.NEW_FOLLOWER,
-                Message = "Sizi takip etmeye başladı.",
-                UserId = request.FollowingId,
-                ActorUserId = request.UserId,
-                CreatedAt = DateTime.UtcNow,
-                isActive = true,
-                isDeleted = false
-            };
+            var notification = await _notificationService.BuildAsync(new NotificationCreateModel { Type = NotificationType.NEW_FOLLOWER, UserId = request.FollowingId, ActorUserId = request.UserId, Cooldown = TimeSpan.FromHours(24) }, cancellationToken);
 
             var result = await _unitOfWork.FollowerRepository.CreateIfNotExistsAsync(follow, notification, cancellationToken);
             if (result.Created)

@@ -51,6 +51,7 @@ namespace blogapp_server.Persistence
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IAuthSessionService, AuthSessionService>();
+            services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<IAuthorizationEndpointService, AuthorizationEndpointService>();
 

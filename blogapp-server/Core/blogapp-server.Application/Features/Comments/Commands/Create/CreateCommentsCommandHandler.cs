@@ -1,5 +1,7 @@
 ﻿using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
+using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Dtos;
 using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Enums;
 using MediatR;
@@ -10,10 +12,12 @@ namespace blogapp_server.Application.Features.Comments.Commands.Create
     {
         private const int CommentLimitPerMinute = 10;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly INotificationService _notificationService;
 
-        public CreateCommentsCommandHandler(IUnitOfWork unitOfWork)
+        public CreateCommentsCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
+            _notificationService = notificationService;
         }
 
         public async Task<CreateCommentsCommandResponse> Handle(CreateCommentsCommand request, CancellationToken cancellationToken)
@@ -50,21 +54,7 @@ namespace blogapp_server.Application.Features.Comments.Commands.Create
             };
             await _unitOfWork.CommentRepository.AddAsync(comment);
 
-            if (postOwnerId.Value != request.UserId)
-            {
-                await _unitOfWork.NotificationRepository.AddAsync(new Notification
-                {
-                    Type = NotificationType.POST_COMMENTED,
-                    Message = "Paylaşımınız yeni bir yorum aldı.",
-                    UserId = postOwnerId.Value,
-                    ActorUserId = request.UserId,
-                    PostId = request.PostId,
-                    Comment = comment,
-                    CreatedAt = now,
-                    isActive = true,
-                    isDeleted = false
-                });
-            }
+            await _notificationService.AddAsync(new NotificationCreateModel { Type = NotificationType.POST_COMMENTED, UserId = postOwnerId.Value, ActorUserId = request.UserId, PostId = request.PostId, Comment = comment }, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             var commentDto = await _unitOfWork.CommentRepository.GetDtoByIdAsync(comment.Id, cancellationToken) ?? throw new NotFoundException("Oluşturulan yorum bulunamadı.");

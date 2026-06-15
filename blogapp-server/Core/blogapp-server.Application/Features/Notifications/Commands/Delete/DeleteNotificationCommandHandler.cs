@@ -20,17 +20,12 @@ namespace blogapp_server.Application.Features.Notifications.Commands.Delete
 
         public async Task<DeleteNotificationCommandResponse> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
         {
-            var notification = await _unitOfWork.NotificationRepository.GetByIdAsync(request.Id);
-            if (notification == null)
+            var deleted = await _unitOfWork.NotificationRepository.SoftDeleteByIdAndUserAsync(request.Id, request.UserId, cancellationToken);
+            if (!deleted)
             {
-                throw new NotFoundException("Bildirim bulunamadı!");
-            }
-            if (notification.UserId != request.UserId)
-            {
-                throw new UnauthorizedAccesException("Bu bildirimi silme yetkiniz yok.");
+                throw new NotFoundException("Bildirim bulunamadı.");
             }
 
-            await _unitOfWork.NotificationRepository.DeleteAsync(request.Id);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return new DeleteNotificationCommandResponse(true, "Bildirim başarıyla silinmiştir.");
         }

@@ -12,7 +12,6 @@ namespace blogapp_server.Persistence.Repositories
     public class LikeRepository : Repository<Like>, ILikeRepository
     {
         private const string UserPostUniqueIndex = "UX_Likes_UserId_PostId";
-        private static readonly TimeSpan NotificationCooldown = TimeSpan.FromHours(1);
         private readonly BlogAppDbContext _context;
 
         public LikeRepository(BlogAppDbContext context) : base(context)
@@ -33,13 +32,13 @@ namespace blogapp_server.Persistence.Repositories
                 existingLike.isActive = true;
                 existingLike.isDeleted = false;
                 existingLike.CreatedAt = DateTime.UtcNow;
-                await AddNotificationIfAllowedAsync(notification, cancellationToken);
+                await AddNotificationAsync(notification, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
                 return (existingLike, true);
             }
 
             await _context.Likes.AddAsync(like, cancellationToken);
-            await AddNotificationIfAllowedAsync(notification, cancellationToken);
+            await AddNotificationAsync(notification, cancellationToken);
 
             try
             {
@@ -118,16 +117,9 @@ namespace blogapp_server.Persistence.Repositories
 
         private IQueryable<Like> VisibleLikes() => _context.Likes.Where(like => like.isActive && !like.isDeleted && like.Post.Status == PostStatus.Published && like.Post.isPublished && like.Post.isActive && !like.Post.isDeleted);
 
-        private async Task AddNotificationIfAllowedAsync(Notification? notification, CancellationToken cancellationToken)
+        private async Task AddNotificationAsync(Notification? notification, CancellationToken cancellationToken)
         {
-            if (notification == null)
-            {
-                return;
-            }
-
-            var cooldownStart = DateTime.UtcNow.Subtract(NotificationCooldown);
-            var notificationExists = await _context.Notifications.AnyAsync(item => item.Type == NotificationType.POST_LIKED && item.UserId == notification.UserId && item.ActorUserId == notification.ActorUserId && item.PostId == notification.PostId && item.CreatedAt >= cooldownStart, cancellationToken);
-            if (!notificationExists)
+            if (notification != null)
             {
                 await _context.Notifications.AddAsync(notification, cancellationToken);
             }

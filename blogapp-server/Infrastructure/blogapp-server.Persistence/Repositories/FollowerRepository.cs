@@ -19,7 +19,7 @@ namespace blogapp_server.Persistence.Repositories
             _context = context;
         }
 
-        public async Task<(Follower Follower, bool Created)> CreateIfNotExistsAsync(Follower follower, Notification notification, CancellationToken cancellationToken)
+        public async Task<(Follower Follower, bool Created)> CreateIfNotExistsAsync(Follower follower, Notification? notification, CancellationToken cancellationToken)
         {
             var existingFollow = await _context.Followers.FirstOrDefaultAsync(item => item.FollowerId == follower.FollowerId && item.FollowingId == follower.FollowingId, cancellationToken);
             if (existingFollow != null)
@@ -32,13 +32,19 @@ namespace blogapp_server.Persistence.Repositories
                 existingFollow.isActive = true;
                 existingFollow.isDeleted = false;
                 existingFollow.CreatedAt = DateTime.UtcNow;
-                await _context.Notifications.AddAsync(notification, cancellationToken);
+                if (notification != null)
+                {
+                    await _context.Notifications.AddAsync(notification, cancellationToken);
+                }
                 await _context.SaveChangesAsync(cancellationToken);
                 return (existingFollow, true);
             }
 
             await _context.Followers.AddAsync(follower, cancellationToken);
-            await _context.Notifications.AddAsync(notification, cancellationToken);
+            if (notification != null)
+            {
+                await _context.Notifications.AddAsync(notification, cancellationToken);
+            }
 
             try
             {
@@ -48,7 +54,10 @@ namespace blogapp_server.Persistence.Repositories
             catch (DbUpdateException exception) when (IsDuplicateFollow(exception))
             {
                 _context.Entry(follower).State = EntityState.Detached;
-                _context.Entry(notification).State = EntityState.Detached;
+                if (notification != null)
+                {
+                    _context.Entry(notification).State = EntityState.Detached;
+                }
 
                 existingFollow = await _context.Followers.AsNoTracking().FirstOrDefaultAsync(item => item.FollowerId == follower.FollowerId && item.FollowingId == follower.FollowingId, cancellationToken);
                 if (existingFollow != null)

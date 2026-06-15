@@ -1,5 +1,7 @@
 ﻿using blogapp_server.Application.Repositories.Common;
 using blogapp_server.Domain.Entities;
+using blogapp_server.Application.Dtos;
+using blogapp_server.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +12,11 @@ namespace blogapp_server.Application.Repositories
 {
     public interface INotificationRepository : IRepository<Notification>
     {
-        Task<List<Notification>> GetAllNotificationsByUserIdAsync(int userId);
+        Task<(List<NotificationDto> Items, int TotalCount)> GetPagedByUserIdAsync(int userId, int page, int size, bool onlyUnread, CancellationToken cancellationToken);
+        Task<int> GetUnreadCountAsync(int userId, CancellationToken cancellationToken);
+        Task<bool> MarkAsReadAsync(int notificationId, int userId, CancellationToken cancellationToken);
+        Task<int> MarkAllAsReadAsync(int userId, CancellationToken cancellationToken);
+        Task<bool> SoftDeleteByIdAndUserAsync(int notificationId, int userId, CancellationToken cancellationToken);
+        Task<bool> ExistsRecentAsync(NotificationType type, int userId, int? actorUserId, int? postId, int? commentId, DateTime createdAfter, CancellationToken cancellationToken);
     }
 }

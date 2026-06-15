@@ -10,9 +10,13 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Notifications.Queries.GetAllByUserId
 {
-    public class GetAllNotificationsByUserIdQuery : IRequest<List<NotificationDto>>, ICurrentUserRequest
+    public class GetAllNotificationsByUserIdQuery : IRequest<PagedResponse<NotificationDto>>, ICurrentUserRequest
     {
         [JsonIgnore]
         public int UserId { get; set; }
+
+        public int Page { get; set; } = 1;
+        public int Size { get; set; } = 20;
+        public bool OnlyUnread { get; set; }
     }
 }

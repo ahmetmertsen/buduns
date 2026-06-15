@@ -1,6 +1,4 @@
-using AutoMapper;
 using blogapp_server.Application.Dtos;
-using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
 using System;
@@ -11,22 +9,19 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Notifications.Queries.GetAllByUserId
 {
-    public class GetAllNotificationsByUserIdQueryHandler : IRequestHandler<GetAllNotificationsByUserIdQuery, List<NotificationDto>>
+    public class GetAllNotificationsByUserIdQueryHandler : IRequestHandler<GetAllNotificationsByUserIdQuery, PagedResponse<NotificationDto>>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public GetAllNotificationsByUserIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetAllNotificationsByUserIdQueryHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
-        public async Task<List<NotificationDto>> Handle(GetAllNotificationsByUserIdQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<NotificationDto>> Handle(GetAllNotificationsByUserIdQuery request, CancellationToken cancellationToken)
         {
-            var notifications = await _unitOfWork.NotificationRepository.GetAllNotificationsByUserIdAsync(request.UserId);
-            var response = _mapper.Map<List<NotificationDto>>(notifications);
-            return response;
+            var result = await _unitOfWork.NotificationRepository.GetPagedByUserIdAsync(request.UserId, request.Page, request.Size, request.OnlyUnread, cancellationToken);
+            return new PagedResponse<NotificationDto> { Items = result.Items, Page = request.Page, Size = request.Size, TotalCount = result.TotalCount };
         }
     }
 }

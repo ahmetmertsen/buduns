@@ -1,4 +1,5 @@
 using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
@@ -17,13 +18,15 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
         private readonly UserManager<User> _userManager;
         private readonly ILogger<ReviewReportCommandHandler> _logger;
         private readonly IAuthSessionService _authSessionService;
+        private readonly INotificationService _notificationService;
 
-        public ReviewReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<ReviewReportCommandHandler> logger, IAuthSessionService authSessionService)
+        public ReviewReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<ReviewReportCommandHandler> logger, IAuthSessionService authSessionService, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _logger = logger;
             _authSessionService = authSessionService;
+            _notificationService = notificationService;
         }
 
         public async Task<ReviewReportCommandResponse> Handle(ReviewReportCommand request, CancellationToken cancellationToken)
@@ -58,7 +61,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                 throw new BadRequestException("Moderatör kendi hesabına moderasyon aksiyonu uygulayamaz.");
             }
 
-            var actionExpiresAt = await ApplyModerationActionAsync(report, request);
+            var actionExpiresAt = await ApplyModerationActionAsync(report, request, cancellationToken);
             var targetId = GetTargetId(report);
             var openReports = await _unitOfWork.ReportRepository.GetOpenReportsForTargetAsync(report.TargetType, targetId, cancellationToken);
             var reviewedAt = DateTime.UtcNow;
@@ -90,7 +93,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                 isDeleted = false
             };
             await _unitOfWork.ModerationActionRepository.AddAsync(moderationAction);
-            await AddReporterNotificationsAsync(openReports);
+            await AddReporterNotificationsAsync(openReports, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             if (actionTargetUserId.HasValue && (request.ActionType == ModerationActionType.SuspendUser || request.ActionType == ModerationActionType.BanUser))
@@ -102,7 +105,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
             return new ReviewReportCommandResponse(true, "Şikayet ve aynı hedefe ait açık şikayetler sonuçlandırıldı.");
         }
 
-        private async Task<DateTime?> ApplyModerationActionAsync(ReportEntity report, ReviewReportCommand request)
+        private async Task<DateTime?> ApplyModerationActionAsync(ReportEntity report, ReviewReportCommand request, CancellationToken cancellationToken)
         {
             switch (request.ActionType)
             {
@@ -115,7 +118,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     postToHide.isActive = false;
                     postToHide.UpdateAt = DateTime.UtcNow;
                     _unitOfWork.PostRepository.Update(postToHide);
-                    await AddTargetNotificationAsync(postToHide.UserId, NotificationType.POST_HIDDEN, "Paylaşımınız moderasyon kararıyla gizlendi.", postToHide.Id);
+                    await AddTargetNotificationAsync(postToHide.UserId, NotificationType.POST_HIDDEN, "Paylaşımınız moderasyon kararıyla gizlendi.", postToHide.Id, null, cancellationToken);
                     return null;
                 case ModerationActionType.DeletePost:
                     var postToDelete = GetTargetPost(report);
@@ -125,7 +128,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     postToDelete.isDeleted = true;
                     postToDelete.UpdateAt = DateTime.UtcNow;
                     _unitOfWork.PostRepository.Update(postToDelete);
-                    await AddTargetNotificationAsync(postToDelete.UserId, NotificationType.POST_REMOVED, "Paylaşımınız moderasyon kararıyla kaldırıldı.", postToDelete.Id);
+                    await AddTargetNotificationAsync(postToDelete.UserId, NotificationType.POST_REMOVED, "Paylaşımınız moderasyon kararıyla kaldırıldı.", postToDelete.Id, null, cancellationToken);
                     return null;
                 case ModerationActionType.HideComment:
                     var commentToHide = GetTargetComment(report);
@@ -133,7 +136,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     commentToHide.Status = CommentStatus.HiddenByModerator;
                     commentToHide.isActive = false;
                     commentToHide.UpdateAt = DateTime.UtcNow;
-                    await AddTargetNotificationAsync(commentToHide.UserId, NotificationType.COMMENT_HIDDEN, "Yorumunuz moderasyon kararıyla gizlendi.", commentToHide.PostId, commentToHide.Id);
+                    await AddTargetNotificationAsync(commentToHide.UserId, NotificationType.COMMENT_HIDDEN, "Yorumunuz moderasyon kararıyla gizlendi.", commentToHide.PostId, commentToHide.Id, cancellationToken);
                     return null;
                 case ModerationActionType.DeleteComment:
                     var commentToDelete = GetTargetComment(report);
@@ -142,24 +145,24 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     commentToDelete.isActive = false;
                     commentToDelete.isDeleted = true;
                     commentToDelete.UpdateAt = DateTime.UtcNow;
-                    await AddTargetNotificationAsync(commentToDelete.UserId, NotificationType.COMMENT_REMOVED, "Yorumunuz moderasyon kararıyla kaldırıldı.", commentToDelete.PostId, commentToDelete.Id);
+                    await AddTargetNotificationAsync(commentToDelete.UserId, NotificationType.COMMENT_REMOVED, "Yorumunuz moderasyon kararıyla kaldırıldı.", commentToDelete.PostId, commentToDelete.Id, cancellationToken);
                     return null;
                 case ModerationActionType.WarnUser:
                     var warnedUserId = ResolveActionTargetUserId(report, request.ActionType) ?? throw new BadRequestException("Uyarılacak kullanıcı bulunamadı.");
-                    await AddTargetNotificationAsync(warnedUserId, NotificationType.MODERATION_WARNING, "Hesabınız bir topluluk kuralı ihlali nedeniyle uyarıldı.");
+                    await AddTargetNotificationAsync(warnedUserId, NotificationType.MODERATION_WARNING, "Hesabınız bir topluluk kuralı ihlali nedeniyle uyarıldı.", null, null, cancellationToken);
                     return null;
                 case ModerationActionType.SuspendUser:
                     var suspendedUser = await GetActionTargetUserAsync(report);
                     var suspensionEnd = DateTime.UtcNow.AddDays(request.SuspensionDays!.Value);
                     suspendedUser.Status = UserStatus.Suspended;
                     suspendedUser.SuspendedUntil = suspensionEnd;
-                    await AddTargetNotificationAsync(suspendedUser.Id, NotificationType.ACCOUNT_SUSPENDED, $"Hesabınız {request.SuspensionDays.Value} gün süreyle askıya alındı.");
+                    await AddTargetNotificationAsync(suspendedUser.Id, NotificationType.ACCOUNT_SUSPENDED, $"Hesabınız {request.SuspensionDays.Value} gün süreyle askıya alındı.", null, null, cancellationToken);
                     return suspensionEnd;
                 case ModerationActionType.BanUser:
                     var bannedUser = await GetActionTargetUserAsync(report);
                     bannedUser.Status = UserStatus.Banned;
                     bannedUser.SuspendedUntil = null;
-                    await AddTargetNotificationAsync(bannedUser.Id, NotificationType.ACCOUNT_BANNED, "Hesabınız moderasyon kararıyla kalıcı olarak yasaklandı.");
+                    await AddTargetNotificationAsync(bannedUser.Id, NotificationType.ACCOUNT_BANNED, "Hesabınız moderasyon kararıyla kalıcı olarak yasaklandı.", null, null, cancellationToken);
                     return null;
                 default:
                     throw new BadRequestException("Desteklenmeyen moderasyon aksiyonu.");
@@ -223,17 +226,17 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
             _ => throw new BadRequestException("Şikayet hedefi geçersiz.")
         };
 
-        private async Task AddReporterNotificationsAsync(IEnumerable<ReportEntity> reports)
+        private async Task AddReporterNotificationsAsync(IEnumerable<ReportEntity> reports, CancellationToken cancellationToken)
         {
             foreach (var reporterUserId in reports.Select(report => report.ReporterUserId).Distinct())
             {
-                await AddTargetNotificationAsync(reporterUserId, NotificationType.REPORT_RESOLVED, "Oluşturduğunuz bir şikayet moderasyon ekibi tarafından sonuçlandırıldı.");
+                await AddTargetNotificationAsync(reporterUserId, NotificationType.REPORT_RESOLVED, "Oluşturduğunuz bir şikayet moderasyon ekibi tarafından sonuçlandırıldı.", null, null, cancellationToken);
             }
         }
 
-        private async Task AddTargetNotificationAsync(int userId, NotificationType type, string message, int? postId = null, int? commentId = null)
+        private async Task AddTargetNotificationAsync(int userId, NotificationType type, string message, int? postId, int? commentId, CancellationToken cancellationToken)
         {
-            await _unitOfWork.NotificationRepository.AddAsync(new Notification { UserId = userId, Type = type, Message = message, PostId = postId, CommentId = commentId, CreatedAt = DateTime.UtcNow, isActive = true, isDeleted = false });
+            await _notificationService.AddAsync(new NotificationCreateModel { UserId = userId, Type = type, Message = message, PostId = postId, CommentId = commentId }, cancellationToken);
         }
     }
 }
