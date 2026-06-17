@@ -2,15 +2,10 @@ using AutoMapper;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Posts.Queries.GetAllByTagId
 {
-    public class GetAllPostsByTagIdQueryHandler : IRequestHandler<GetAllPostsByTagIdQuery, List<PostDto>>
+    public class GetAllPostsByTagIdQueryHandler : IRequestHandler<GetAllPostsByTagIdQuery, PagedResponse<PostDto>>
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
@@ -21,11 +16,10 @@ namespace blogapp_server.Application.Features.Posts.Queries.GetAllByTagId
             _mapper = mapper;
         }
 
-        public async Task<List<PostDto>> Handle(GetAllPostsByTagIdQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<PostDto>> Handle(GetAllPostsByTagIdQuery request, CancellationToken cancellationToken)
         {
-            var posts = await _unitOfWork.PostRepository.GetAllByTagIdAsync(request.TagId);
-            var response = _mapper.Map<List<PostDto>>(posts);
-            return response;
+            var result = await _unitOfWork.PostRepository.GetPagedByTagIdAsync(request.TagId, request.Page, request.Size, cancellationToken);
+            return new PagedResponse<PostDto> { Items = _mapper.Map<List<PostDto>>(result.Items), Page = request.Page, Size = request.Size, TotalCount = result.TotalCount };
         }
     }
 }

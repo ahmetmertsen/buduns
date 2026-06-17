@@ -32,7 +32,7 @@ namespace blogapp_server.Application.Features.Posts.Commands.Create
                 .Distinct()
                 .ToList() ?? new List<int>();
 
-            var tags = await _unitOfWork.TagRepository.GetByIdsAsync(tagIds);
+            var tags = await _unitOfWork.TagRepository.GetByIdsAsync(tagIds, cancellationToken);
             var foundTagIds = tags.Select(t => t.Id).ToHashSet();
             var missingTagIds = tagIds.Where(id => !foundTagIds.Contains(id)).ToList();
 

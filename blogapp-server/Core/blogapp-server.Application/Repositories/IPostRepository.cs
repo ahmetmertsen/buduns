@@ -12,7 +12,7 @@ namespace blogapp_server.Application.Repositories
 {
     public interface IPostRepository : IRepository<Post>
     {
-        Task<List<Post?>> GetAllByTagIdAsync(int TagId);
+        Task<(List<Post> Items, int TotalCount)> GetPagedByTagIdAsync(int tagId, int page, int size, CancellationToken cancellationToken = default);
         Task<Post?> GetByIdWithTagsAsync(int id);
         Task<bool> ExistsVisibleAsync(int id, CancellationToken cancellationToken = default);
         Task<int?> GetVisibleOwnerIdAsync(int id, CancellationToken cancellationToken = default);

@@ -1,14 +1,12 @@
 using blogapp_server.Application.Dtos;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Tags.Queries.GetAll
 {
-    public record GetAllTagsQuery : IRequest<List<TagDto>>
+    public class GetAllTagsQuery : IRequest<PagedResponse<TagDto>>
     {
+        public int Page { get; set; } = 1;
+        public int Size { get; set; } = 50;
+        public string? Search { get; set; }
     }
 }

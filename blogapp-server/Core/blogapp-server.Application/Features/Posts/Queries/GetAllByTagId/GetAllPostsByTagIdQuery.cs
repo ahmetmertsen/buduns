@@ -1,14 +1,12 @@
 using blogapp_server.Application.Dtos;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Posts.Queries.GetAllByTagId
 {
-    public record GetAllPostsByTagIdQuery(int TagId) : IRequest<List<PostDto>>
+    public class GetAllPostsByTagIdQuery : IRequest<PagedResponse<PostDto>>
     {
+        public int TagId { get; set; }
+        public int Page { get; set; } = 1;
+        public int Size { get; set; } = 20;
     }
 }

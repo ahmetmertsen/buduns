@@ -36,16 +36,13 @@ namespace blogapp_server.Persistence.Repositories
                 .Include(post => post.Bookmarks)
                 .FirstOrDefaultAsync(post => post.Id == id);
 
-        public Task<List<Post?>> GetAllByTagIdAsync(int tagId) =>
-            VisiblePosts()
-                .Include(post => post.Tags)
-                .Include(post => post.Likes)
-                .ThenInclude(like => like.User)
-                .Include(post => post.Comments)
-                .Include(post => post.Bookmarks)
-                .Where(post => post.Tags.Any(tag => tag.Id == tagId))
-                .Cast<Post?>()
-                .ToListAsync();
+        public async Task<(List<Post> Items, int TotalCount)> GetPagedByTagIdAsync(int tagId, int page, int size, CancellationToken cancellationToken = default)
+        {
+            var query = VisiblePosts().Where(post => post.Tags.Any(tag => tag.Id == tagId && tag.isActive && !tag.isDeleted));
+            var totalCount = await query.CountAsync(cancellationToken);
+            var items = await query.Include(post => post.Tags).Include(post => post.Likes).ThenInclude(like => like.User).Include(post => post.Comments).Include(post => post.Bookmarks).OrderByDescending(post => post.CreatedAt).ThenByDescending(post => post.Id).Skip((page - 1) * size).Take(size).ToListAsync(cancellationToken);
+            return (items, totalCount);
+        }
 
         public Task<Post?> GetByIdWithTagsAsync(int id) =>
             _context.Posts

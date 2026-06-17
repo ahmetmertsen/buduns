@@ -1,32 +1,32 @@
-﻿using AutoMapper;
+using blogapp_server.Application.Common.Helpers;
+using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Tags.Commands.Create
 {
     public class CreateTagsCommandHandler : IRequestHandler<CreateTagsCommand, CreateTagsCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public CreateTagsCommandHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public CreateTagsCommandHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
         public async Task<CreateTagsCommandResponse> Handle(CreateTagsCommand request, CancellationToken cancellationToken)
         {
-            var tag = _mapper.Map<Tag>(request);
-            tag.isActive = true;
-            tag.CreatedAt = DateTime.UtcNow;
-            tag.isDeleted = false;
+            var name = TagNameNormalizer.NormalizeDisplayName(request.Name);
+            var normalizedName = TagNameNormalizer.NormalizeKey(request.Name);
+            var exists = await _unitOfWork.TagRepository.ExistsByNormalizedNameAsync(normalizedName, cancellationToken: cancellationToken);
+            if (exists)
+            {
+                throw new BadRequestException("Bu tag zaten mevcut.");
+            }
+
+            var now = DateTime.UtcNow;
+            var tag = new Tag { Name = name, NormalizedName = normalizedName, CreatedAt = now, UpdateAt = now, isActive = true, isDeleted = false };
 
             await _unitOfWork.TagRepository.AddAsync(tag);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

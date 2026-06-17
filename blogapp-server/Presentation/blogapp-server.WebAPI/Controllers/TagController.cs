@@ -56,9 +56,9 @@ namespace blogapp_server.WebAPI.Controllers
 
         [HttpGet]
         [Route("getAll")]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int size = 50, [FromQuery] string? search = null)
         {
-            var response = await _mediatR.Send(new GetAllTagsQuery());
+            var response = await _mediatR.Send(new GetAllTagsQuery { Page = page, Size = size, Search = search });
             return Ok(response);
         }
 

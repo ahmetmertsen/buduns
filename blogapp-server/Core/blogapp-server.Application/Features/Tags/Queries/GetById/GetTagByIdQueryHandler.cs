@@ -1,35 +1,27 @@
-using AutoMapper;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Tags.Queries.GetById
 {
     public class GetTagByIdQueryHandler : IRequestHandler<GetTagByIdQuery, TagDto>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public GetTagByIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetTagByIdQueryHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
-        public async Task<TagDto> Handle(GetTagByIdQuery request, CancellationToken cancellationToken) 
+        public async Task<TagDto> Handle(GetTagByIdQuery request, CancellationToken cancellationToken)
         {
-            var tag = await _unitOfWork.TagRepository.GetByIdAsync(request.Id);
-            if (tag == null)
+            var response = await _unitOfWork.TagRepository.GetDtoByIdAsync(request.Id, cancellationToken);
+            if (response == null)
             {
-                throw new NotFoundException("Tag bulunamadý!");
+                throw new NotFoundException("Tag bulunamadÄ±.");
             }
-            var response = _mapper.Map<TagDto>(tag);
+
             return response;
         }
     }

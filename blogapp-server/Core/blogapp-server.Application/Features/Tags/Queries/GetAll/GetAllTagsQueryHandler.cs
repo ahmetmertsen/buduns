@@ -1,31 +1,22 @@
-using AutoMapper;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Tags.Queries.GetAll
 {
-    public class GetAllTagsQueryHandler : IRequestHandler<GetAllTagsQuery, List<TagDto>>
+    public class GetAllTagsQueryHandler : IRequestHandler<GetAllTagsQuery, PagedResponse<TagDto>>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public GetAllTagsQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetAllTagsQueryHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
-        public async Task<List<TagDto>> Handle(GetAllTagsQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<TagDto>> Handle(GetAllTagsQuery request, CancellationToken cancellationToken)
         {
-            var tags = await _unitOfWork.TagRepository.GetAllAsync();
-            var response = _mapper.Map<List<TagDto>>(tags);
-            return response;
+            var result = await _unitOfWork.TagRepository.GetPagedAsync(request.Page, request.Size, request.Search, cancellationToken);
+            return new PagedResponse<TagDto> { Items = result.Items, Page = request.Page, Size = request.Size, TotalCount = result.TotalCount };
         }
     }
 }

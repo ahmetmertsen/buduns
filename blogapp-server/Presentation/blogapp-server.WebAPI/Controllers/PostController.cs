@@ -5,6 +5,7 @@ using blogapp_server.Application.Features.Posts.Commands.Delete;
 using blogapp_server.Application.Features.Posts.Commands.Update;
 using blogapp_server.Application.Features.Posts.Queries.GetAll;
 using blogapp_server.Application.Features.Posts.Queries.GetDailyTopPosts;
+using blogapp_server.Application.Features.Posts.Queries.GetAllByTagId;
 using blogapp_server.Application.Features.Posts.Queries.GetById;
 using blogapp_server.Application.Features.Users.Commands.Delete;
 using blogapp_server.Domain.Enums;
@@ -69,6 +70,14 @@ namespace blogapp_server.WebAPI.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var response = await _mediatR.Send(new GetPostByIdQuery(id));
+            return Ok(response);
+        }
+
+        [HttpGet]
+        [Route("tag/{tagId:int}")]
+        public async Task<IActionResult> GetByTagId(int tagId, [FromQuery] int page = 1, [FromQuery] int size = 20)
+        {
+            var response = await _mediatR.Send(new GetAllPostsByTagIdQuery { TagId = tagId, Page = page, Size = size });
             return Ok(response);
         }
 

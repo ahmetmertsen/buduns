@@ -10,6 +10,7 @@ namespace blogapp_server.Domain.Entities
     public class Tag : BaseEntity
     {
         public string Name { get; set; }
+        public string NormalizedName { get; set; }
 
         public ICollection<Post> Posts { get; set; }
     }

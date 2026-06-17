@@ -45,6 +45,22 @@ namespace blogapp_server.Persistence.Context
                     .HasConversion<string>();
             });
 
+            modelBuilder.Entity<Tag>(entity =>
+            {
+                entity.Property(tag => tag.Name)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(tag => tag.NormalizedName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.HasIndex(tag => tag.NormalizedName)
+                    .IsUnique()
+                    .HasDatabaseName("UX_Tags_NormalizedName_Active")
+                    .HasFilter("\"isDeleted\" = false AND \"isActive\" = true");
+            });
+
             modelBuilder.Entity<AuthSession>(entity =>
             {
                 entity.HasKey(session => session.Id);

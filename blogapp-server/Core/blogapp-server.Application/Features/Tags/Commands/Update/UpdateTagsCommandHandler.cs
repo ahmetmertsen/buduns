@@ -1,38 +1,41 @@
-﻿using AutoMapper;
+using blogapp_server.Application.Common.Helpers;
+using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
-using blogapp_server.Domain.Entities;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Tags.Commands.Update
 {
     public class UpdateTagsCommandHandler : IRequestHandler<UpdateTagsCommand, UpdateTagsCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
 
-        public UpdateTagsCommandHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public UpdateTagsCommandHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
         }
 
         public async Task<UpdateTagsCommandResponse> Handle(UpdateTagsCommand request, CancellationToken cancellationToken)
         {
-            var tag = await _unitOfWork.TagRepository.GetByIdAsync(request.Id);
+            var tag = await _unitOfWork.TagRepository.GetVisibleByIdAsync(request.Id, cancellationToken);
             if (tag == null)
             {
-                throw new DirectoryNotFoundException("Tag bulunamadı!");
+                throw new NotFoundException("Tag bulunamadı.");
             }
-            _mapper.Map(request, tag);
+
+            var name = TagNameNormalizer.NormalizeDisplayName(request.Name);
+            var normalizedName = TagNameNormalizer.NormalizeKey(request.Name);
+            var exists = await _unitOfWork.TagRepository.ExistsByNormalizedNameAsync(normalizedName, request.Id, cancellationToken);
+            if (exists)
+            {
+                throw new BadRequestException("Bu tag zaten mevcut.");
+            }
+
+            tag.Name = name;
+            tag.NormalizedName = normalizedName;
             tag.UpdateAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return new UpdateTagsCommandResponse(Succeeded: true, Message: "Tag başarıyla güncellendi");
+            return new UpdateTagsCommandResponse(Succeeded: true, Message: "Tag başarıyla güncellendi.");
         }
     }
 }

@@ -1,18 +1,13 @@
-﻿using AutoMapper;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Tags.Commands.Delete
 {
-    public class DeleteTagsCommandHandler : IRequestHandler<DeleteTagsCommand,DeleteTagsCommandResponse>
+    public class DeleteTagsCommandHandler : IRequestHandler<DeleteTagsCommand, DeleteTagsCommandResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
+
         public DeleteTagsCommandHandler(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
@@ -20,16 +15,17 @@ namespace blogapp_server.Application.Features.Tags.Commands.Delete
 
         public async Task<DeleteTagsCommandResponse> Handle(DeleteTagsCommand request, CancellationToken cancellationToken)
         {
-            var tag = await _unitOfWork.TagRepository.GetByIdAsync(request.Id);
+            var tag = await _unitOfWork.TagRepository.GetVisibleByIdAsync(request.Id, cancellationToken);
             if (tag == null)
             {
-                throw new NotFoundException("Tag bulunamadı!");
+                throw new NotFoundException("Tag bulunamadı.");
             }
 
-            await _unitOfWork.TagRepository.DeleteAsync(tag.Id);
+            tag.isActive = false;
+            tag.isDeleted = true;
+            tag.UpdateAt = DateTime.UtcNow;
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return new DeleteTagsCommandResponse(Succeeded: true, Message: "Tag başarıyla silindi.");
         }
-
     }
 }

@@ -15,8 +15,10 @@ namespace blogapp_server.Application.Mapping
     {
         public TagProfile() 
         {
-            CreateMap<CreateTagsCommand, Tag>();
-            CreateMap<UpdateTagsCommand, Tag>();
+            CreateMap<CreateTagsCommand, Tag>()
+                .ForMember(dest => dest.NormalizedName, opt => opt.Ignore());
+            CreateMap<UpdateTagsCommand, Tag>()
+                .ForMember(dest => dest.NormalizedName, opt => opt.Ignore());
 
             CreateMap<Tag, TagDto>();
         }
