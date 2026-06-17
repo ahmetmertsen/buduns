@@ -42,10 +42,7 @@ namespace blogapp_server.Application.Features.Posts.Commands.Delete
             _unitOfWork.PostRepository.Update(post);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "Post deleted. PostId: {PostId}, UserId: {UserId}",
-                request.Id,
-                request.UserId);
+            _logger.LogInformation("Post deleted. PostId: {PostId}, UserId: {UserId}", request.Id, request.UserId);
 
             return new DeletePostsCommandResponse(true, "Post başarıyla silinmiştir.");
         }

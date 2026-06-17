@@ -7,7 +7,9 @@ using blogapp_server.Application.Features.Posts.Queries.GetAll;
 using blogapp_server.Application.Features.Posts.Queries.GetDailyTopPosts;
 using blogapp_server.Application.Features.Posts.Queries.GetAllByTagId;
 using blogapp_server.Application.Features.Posts.Queries.GetById;
-using blogapp_server.Application.Features.Users.Commands.Delete;
+using blogapp_server.Application.Features.Posts.Queries.GetFollowingPosts;
+using blogapp_server.Application.Features.Posts.Queries.GetMyPosts;
+using blogapp_server.Application.Features.Posts.Queries.GetPostsByUserId;
 using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -59,9 +61,9 @@ namespace blogapp_server.WebAPI.Controllers
 
         [HttpGet]
         [Route("getAll")]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] GetAllPostsQuery request)
         {
-            var response = await _mediatR.Send(new GetAllPostsQuery());
+            var response = await _mediatR.Send(request);
             return Ok(response);
         }
 
@@ -78,6 +80,34 @@ namespace blogapp_server.WebAPI.Controllers
         public async Task<IActionResult> GetByTagId(int tagId, [FromQuery] int page = 1, [FromQuery] int size = 20)
         {
             var response = await _mediatR.Send(new GetAllPostsByTagIdQuery { TagId = tagId, Page = page, Size = size });
+            return Ok(response);
+        }
+
+        [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Posts, ActionType = ActionType.Reading, Definition = "Get My Posts")]
+        [HttpGet]
+        [Route("me")]
+        public async Task<IActionResult> GetMyPosts([FromQuery] int page = 1, [FromQuery] int size = 20)
+        {
+            var response = await _mediatR.Send(new GetMyPostsQuery { Page = page, Size = size });
+            return Ok(response);
+        }
+
+        [HttpGet]
+        [Route("user/{userId:int}")]
+        public async Task<IActionResult> GetByUserId(int userId, [FromQuery] int page = 1, [FromQuery] int size = 20)
+        {
+            var response = await _mediatR.Send(new GetPostsByUserIdQuery { UserId = userId, Page = page, Size = size });
+            return Ok(response);
+        }
+
+        [Authorize]
+        [AuthorizeDefinition( Menu = AuthorizeDefinitionConstants.Posts, ActionType = ActionType.Reading, Definition = "Get Following Posts")]
+        [HttpGet]
+        [Route("following")]
+        public async Task<IActionResult> GetFollowingPosts([FromQuery] int page = 1, [FromQuery] int size = 20)
+        {
+            var response = await _mediatR.Send(new GetFollowingPostsQuery { Page = page, Size = size });
             return Ok(response);
         }
 

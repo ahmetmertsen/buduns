@@ -91,7 +91,13 @@ namespace blogapp_server.Persistence.Repositories
                         Id = bookmark.Post.Id,
                         Content = bookmark.Post.Content,
                         UserId = bookmark.Post.UserId,
+                        UserName = bookmark.Post.User.UserName!,
+                        UserFullName = bookmark.Post.User.FullName,
+                        UserImageUrl = bookmark.Post.User.ImageUrl,
+                        CreatedAt = bookmark.Post.CreatedAt,
+                        UpdatedAt = bookmark.Post.UpdateAt,
                         Tags = bookmark.Post.Tags
+                            .Where(tag => tag.isActive && !tag.isDeleted)
                             .Select(tag => new TagDto
                             {
                                 Id = tag.Id,
@@ -99,8 +105,12 @@ namespace blogapp_server.Persistence.Repositories
                             })
                             .ToList(),
                         LikeCount = bookmark.Post.Likes.Count(like => like.isActive && !like.isDeleted && like.User.Status != UserStatus.Banned),
-                        CommentCount = bookmark.Post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
-                        BookmarkCount = bookmark.Post.Bookmarks.Count(item => item.isActive && !item.isDeleted)
+                        CommentCount = bookmark.Post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted && comment.User.Status != UserStatus.Banned),
+                        BookmarkCount = bookmark.Post.Bookmarks.Count(item => item.isActive && !item.isDeleted),
+                        IsLiked = bookmark.Post.Likes.Any(like => like.UserId == userId && like.isActive && !like.isDeleted),
+                        IsBookmarked = true,
+                        IsOwner = bookmark.Post.UserId == userId,
+                        IsFollowingAuthor = bookmark.Post.User.Followers.Any(follow => follow.FollowerId == userId && follow.isActive && !follow.isDeleted)
                     }
                 })
                 .AsNoTracking()
@@ -119,7 +129,8 @@ namespace blogapp_server.Persistence.Repositories
                 bookmark.Post.Status == PostStatus.Published &&
                 bookmark.Post.isPublished &&
                 bookmark.Post.isActive &&
-                !bookmark.Post.isDeleted);
+                !bookmark.Post.isDeleted &&
+                bookmark.Post.User.Status != UserStatus.Banned);
 
         private static bool IsDuplicateBookmark(DbUpdateException exception) =>
             exception.InnerException is PostgresException

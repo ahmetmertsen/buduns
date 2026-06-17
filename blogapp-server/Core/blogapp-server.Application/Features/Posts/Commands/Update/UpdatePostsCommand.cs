@@ -12,8 +12,7 @@ namespace blogapp_server.Application.Features.Posts.Commands.Update
     public class UpdatePostsCommand : IRequest<UpdatePostsCommandResponse>, ICurrentUserRequest
     {
         public int Id { get; set; }
-        public string Content { get; set; }
-        public bool isPublished { get; set; }
+        public string Content { get; set; } = string.Empty;
 
         public List<int> TagIds { get; set; } = new();
 

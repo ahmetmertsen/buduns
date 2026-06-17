@@ -1,14 +1,15 @@
 using blogapp_server.Application.Dtos;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Posts.Queries.GetAll
 {
-    public record GetAllPostsQuery : IRequest<List<PostDto>>
+    public class GetAllPostsQuery : IRequest<PagedResponse<PostDto>>
     {
+        public int Page { get; set; } = 1;
+        public int Size { get; set; } = 20;
+        public int? TagId { get; set; }
+        public int? UserId { get; set; }
+        public string? Search { get; set; }
+        public string? SortBy { get; set; } = "recent";
     }
 }

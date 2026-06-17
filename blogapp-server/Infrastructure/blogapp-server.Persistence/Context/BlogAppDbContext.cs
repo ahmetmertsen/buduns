@@ -32,9 +32,18 @@ namespace blogapp_server.Persistence.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Post>()
-                .Property(post => post.Status)
-                .HasDefaultValue(Domain.Enums.PostStatus.Published);
+            modelBuilder.Entity<Post>(entity =>
+            {
+                entity.Property(post => post.Content)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                entity.Property(post => post.Status)
+                    .HasDefaultValue(Domain.Enums.PostStatus.Published);
+
+                entity.HasIndex(post => new { post.Status, post.isPublished, post.isActive, post.isDeleted, post.CreatedAt });
+                entity.HasIndex(post => new { post.UserId, post.Status, post.CreatedAt });
+            });
 
             modelBuilder.Entity<User>(entity =>
             {

@@ -14,8 +14,7 @@ namespace blogapp_server.Application.Features.Posts.Commands.Create
     {
         [JsonIgnore]
         public int UserId { get; set; }
-        public string Content { get; set; }
-        public bool isPublished { get; set; }
+        public string Content { get; set; } = string.Empty;
 
         public List<int> TagIds { get; set; } = new();
     }

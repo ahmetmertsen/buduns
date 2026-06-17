@@ -46,8 +46,10 @@ namespace blogapp_server.Application.Features.Posts.Commands.Create
             var post = _mapper.Map<Post>(request);
             post.UserId = request.UserId;
             post.CreatedAt = DateTime.UtcNow;
+            post.UpdateAt = post.CreatedAt;
             post.isActive = true;
             post.isDeleted = false;
+            post.isPublished = true;
             post.Status = Domain.Enums.PostStatus.Published;
             post.Tags = tags;
 
@@ -55,11 +57,7 @@ namespace blogapp_server.Application.Features.Posts.Commands.Create
             await _unitOfWork.PostRepository.AddAsync(post);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "Post created. PostId: {PostId}, UserId: {UserId}, TagCount: {TagCount}",
-                post.Id,
-                request.UserId,
-                tagIds.Count);
+            _logger.LogInformation("Post created. PostId: {PostId}, UserId: {UserId}, TagCount: {TagCount}", post.Id, request.UserId, tagIds.Count);
 
             return new CreatePostsCommandResponse(true, "Post başarıyla eklenmiştir.");
         }

@@ -105,17 +105,26 @@ namespace blogapp_server.Persistence.Repositories
                     Id = like.Post.Id,
                     Content = like.Post.Content,
                     UserId = like.Post.UserId,
-                    Tags = like.Post.Tags.Select(tag => new TagDto { Id = tag.Id, Name = tag.Name }).ToList(),
+                    UserName = like.Post.User.UserName!,
+                    UserFullName = like.Post.User.FullName,
+                    UserImageUrl = like.Post.User.ImageUrl,
+                    CreatedAt = like.Post.CreatedAt,
+                    UpdatedAt = like.Post.UpdateAt,
+                    Tags = like.Post.Tags.Where(tag => tag.isActive && !tag.isDeleted).Select(tag => new TagDto { Id = tag.Id, Name = tag.Name }).ToList(),
                     LikeCount = like.Post.Likes.Count(item => item.isActive && !item.isDeleted && item.User.Status != UserStatus.Banned),
-                    CommentCount = like.Post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted),
-                    BookmarkCount = like.Post.Bookmarks.Count(bookmark => bookmark.isActive && !bookmark.isDeleted)
+                    CommentCount = like.Post.Comments.Count(comment => comment.Status == CommentStatus.Published && comment.isActive && !comment.isDeleted && comment.User.Status != UserStatus.Banned),
+                    BookmarkCount = like.Post.Bookmarks.Count(bookmark => bookmark.isActive && !bookmark.isDeleted),
+                    IsLiked = true,
+                    IsBookmarked = like.Post.Bookmarks.Any(bookmark => bookmark.UserId == userId && bookmark.isActive && !bookmark.isDeleted),
+                    IsOwner = like.Post.UserId == userId,
+                    IsFollowingAuthor = like.Post.User.Followers.Any(follow => follow.FollowerId == userId && follow.isActive && !follow.isDeleted)
                 }
             }).ToListAsync(cancellationToken);
 
             return (items, totalCount);
         }
 
-        private IQueryable<Like> VisibleLikes() => _context.Likes.Where(like => like.isActive && !like.isDeleted && like.Post.Status == PostStatus.Published && like.Post.isPublished && like.Post.isActive && !like.Post.isDeleted);
+        private IQueryable<Like> VisibleLikes() => _context.Likes.Where(like => like.isActive && !like.isDeleted && like.Post.Status == PostStatus.Published && like.Post.isPublished && like.Post.isActive && !like.Post.isDeleted && like.Post.User.Status != UserStatus.Banned);
 
         private async Task AddNotificationAsync(Notification? notification, CancellationToken cancellationToken)
         {
