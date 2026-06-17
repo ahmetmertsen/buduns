@@ -19,7 +19,7 @@ namespace blogapp_server.Persistence.Repositories
 
         public override Task<List<Post>> GetAllAsync() => VisiblePosts().Include(post => post.Tags).Include(post => post.Likes).ThenInclude(like => like.User).Include(post => post.Comments).Include(post => post.Bookmarks).OrderByDescending(post => post.CreatedAt).ThenByDescending(post => post.Id).AsNoTracking().ToListAsync();
 
-        public override Task<Post?> GetByIdAsync(int id) => VisiblePosts().Include(post => post.Tags).Include(post => post.Likes).ThenInclude(like => like.User).Include(post => post.Comments).Include(post => post.Bookmarks).AsNoTracking().FirstOrDefaultAsync(post => post.Id == id);
+        public override Task<Post?> GetByIdAsync(int id) => VisiblePosts().Include(post => post.User).Include(post => post.Tags).Include(post => post.Likes).ThenInclude(like => like.User).Include(post => post.Comments).Include(post => post.Bookmarks).AsNoTracking().FirstOrDefaultAsync(post => post.Id == id);
 
         public async Task<(List<PostDto> Items, int TotalCount)> GetPagedAsync(int page, int size, int? tagId, int? userId, string? search, string? sortBy, int? viewerUserId, CancellationToken cancellationToken = default)
         {

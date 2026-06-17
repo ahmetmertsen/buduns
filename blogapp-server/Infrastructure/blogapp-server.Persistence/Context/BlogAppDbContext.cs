@@ -186,6 +186,15 @@ namespace blogapp_server.Persistence.Context
 
                 entity.Property(r => r.Description)
                     .HasMaxLength(1000);
+
+                entity.Property(r => r.TargetOwnerUserNameSnapshot)
+                    .HasMaxLength(256);
+
+                entity.Property(r => r.TargetOwnerFullNameSnapshot)
+                    .HasMaxLength(256);
+
+                entity.Property(r => r.TargetContentSnapshot)
+                    .HasMaxLength(1000);
                 
                 entity.Property(r => r.ReviewNote)
                     .HasMaxLength(1000);
@@ -220,8 +229,10 @@ namespace blogapp_server.Persistence.Context
                     r.ReporterUserId,
                     r.TargetType,
                     r.TargetPostId,
-                    r.TargetUserId
-                });
+                    r.TargetUserId,
+                    r.TargetCommentId
+                })
+                .HasDatabaseName("IX_Reports_ReporterUserId_TargetType_TargetIds");
 
                 entity.HasIndex(r => new { r.ReporterUserId, r.TargetPostId })
                     .IsUnique()

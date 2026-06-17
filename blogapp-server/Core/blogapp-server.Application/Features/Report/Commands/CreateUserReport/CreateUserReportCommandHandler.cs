@@ -1,4 +1,6 @@
 ﻿using blogapp_server.Application.Exceptions;
+using blogapp_server.Application.Common.Helpers;
+using blogapp_server.Application.Common.Options;
 using blogapp_server.Application.Repositories;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities.Identity;
@@ -6,6 +8,7 @@ using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,16 +19,17 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
 {
     public class CreateUserReportCommandHandler : IRequestHandler<CreateUserReportCommand, CreateUserReportCommandResponse>
     {
-        private const int DailyReportLimit = 10;
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<CreateUserReportCommandHandler> _logger;
+        private readonly ReportPolicyOptions _reportPolicyOptions;
 
-        public CreateUserReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<CreateUserReportCommandHandler> logger)
+        public CreateUserReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<CreateUserReportCommandHandler> logger, IOptions<ReportPolicyOptions> reportPolicyOptions)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _logger = logger;
+            _reportPolicyOptions = reportPolicyOptions.Value;
         }
 
         public async Task<CreateUserReportCommandResponse> Handle(CreateUserReportCommand request, CancellationToken cancellationToken)
@@ -47,13 +51,14 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
             }
 
             var recentReportCount = await _unitOfWork.ReportRepository.CountRecentReportsByUserAsync(request.UserId, DateTime.UtcNow.AddHours(-24), cancellationToken);
-            if (recentReportCount >= DailyReportLimit)
+            var dailyReportLimit = Math.Max(1, _reportPolicyOptions.DailyReportLimit);
+            if (recentReportCount >= dailyReportLimit)
             {
-                throw new BadRequestException("24 saat içinde en fazla 10 şikayet oluşturabilirsiniz.");
+                throw new TooManyRequestsException($"24 saat içinde en fazla {dailyReportLimit} şikayet oluşturabilirsiniz.");
             }
                 
 
-            bool alreadyReported = await _unitOfWork.ReportRepository.HasPendingUserReportAsync(request.UserId, request.TargetUserId);
+            bool alreadyReported = await _unitOfWork.ReportRepository.HasPendingUserReportAsync(request.UserId, request.TargetUserId, cancellationToken);
             if (alreadyReported)
             {
                 throw new BadRequestException("Bu kullanıcı için zaten bekleyen bir şikayetiniz var.");
@@ -66,6 +71,10 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
                 TargetType = ReportTargetType.User,
                 TargetPostId = null,
                 TargetUserId = request.TargetUserId,
+                TargetOwnerUserId = targetUser.Id,
+                TargetOwnerUserNameSnapshot = targetUser.UserName,
+                TargetOwnerFullNameSnapshot = targetUser.FullName,
+                TargetContentSnapshot = ReportSnapshotHelper.CreateContentSnapshot(targetUser.Bio),
                 Reason = request.Reason,
                 Description = request.Description?.Trim(),
                 Status = ReportStatus.Pending,
@@ -75,12 +84,7 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateUserReport
             await _unitOfWork.ReportRepository.AddAsync(report);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "User report created. ReportId: {ReportId}, ReporterUserId: {ReporterUserId}, TargetUserId: {TargetUserId}, Reason: {Reason}",
-                report.Id,
-                request.UserId,
-                request.TargetUserId,
-                request.Reason);
+            _logger.LogInformation("User report created. ReportId: {ReportId}, ReporterUserId: {ReporterUserId}, TargetUserId: {TargetUserId}, Reason: {Reason}", report.Id, request.UserId, request.TargetUserId, request.Reason);
 
             return new CreateUserReportCommandResponse(Succeeded:true, Message:"Şikayetiniz başarıyla alındı.");
         }

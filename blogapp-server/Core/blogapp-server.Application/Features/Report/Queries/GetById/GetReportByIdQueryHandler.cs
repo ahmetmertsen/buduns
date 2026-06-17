@@ -1,4 +1,5 @@
 using AutoMapper;
+using blogapp_server.Application.Common.Helpers;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Exceptions;
 using blogapp_server.Application.UnitOfWork;
@@ -35,6 +36,7 @@ namespace blogapp_server.Application.Features.Report.Queries.GetById
             var relatedReports = await _unitOfWork.ReportRepository.GetReportsForTargetAsync(report.TargetType, targetId.Value, cancellationToken);
 
             var response = _mapper.Map<ReportDetailDto>(report);
+            response.Priority = ReportPriorityHelper.GetHighestPriority(relatedReports.Select(relatedReport => relatedReport.Reason));
             response.ReportCount = relatedReports.Count;
             response.RelatedReports = _mapper.Map<List<RelatedReportDto>>(relatedReports);
             response.ModerationActions = _mapper.Map<List<ModerationActionDto>>(relatedReports

@@ -1,4 +1,5 @@
 using AutoMapper;
+using blogapp_server.Application.Common.Helpers;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Enums;
@@ -32,8 +33,9 @@ namespace blogapp_server.Application.Features.Report.Queries.GetReports
                     var latestReport = group.OrderByDescending(report => report.CreatedAt).First();
                     var item = _mapper.Map<ReportListDto>(latestReport);
 
-                    item.TargetPostContentPreview = CreateContentPreview(latestReport.TargetPost?.Content);
-                    item.TargetCommentContentPreview = CreateContentPreview(latestReport.TargetComment?.Content);
+                    item.TargetPostContentPreview = CreateContentPreview(latestReport.TargetPost?.Content ?? latestReport.TargetContentSnapshot);
+                    item.TargetCommentContentPreview = CreateContentPreview(latestReport.TargetComment?.Content ?? latestReport.TargetContentSnapshot);
+                    item.Priority = ReportPriorityHelper.GetHighestPriority(group.Select(report => report.Reason));
                     item.ReasonCounts = group
                         .GroupBy(report => report.Reason)
                         .ToDictionary(reasonGroup => reasonGroup.Key, reasonGroup => reasonGroup.Count());
@@ -43,7 +45,8 @@ namespace blogapp_server.Application.Features.Report.Queries.GetReports
 
                     return item;
                 })
-                .OrderByDescending(item => item.LastReportDate)
+                .OrderByDescending(item => item.Priority)
+                .ThenByDescending(item => item.LastReportDate)
                 .ToList();
 
             return new PagedResponse<ReportListDto>

@@ -15,6 +15,7 @@ namespace blogapp_server.Application.Dtos
         public string? ReporterFullName { get; set; }
 
         public ReportTargetType TargetType { get; set; }
+        public ReportPriority Priority { get; set; }
 
         public int? TargetPostId { get; set; }
         public string? TargetPostContentPreview { get; set; }
@@ -25,6 +26,10 @@ namespace blogapp_server.Application.Dtos
 
         public int? TargetCommentId { get; set; }
         public string? TargetCommentContentPreview { get; set; }
+
+        public int? TargetOwnerUserId { get; set; }
+        public string? TargetOwnerUserName { get; set; }
+        public string? TargetOwnerFullName { get; set; }
 
         public ReportReason Reason { get; set; }
         public Dictionary<ReportReason, int> ReasonCounts { get; set; } = new();

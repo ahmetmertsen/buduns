@@ -32,9 +32,9 @@ namespace blogapp_server.Persistence.Repositories
 
         public Task<List<Report>> GetReportsForTargetAsync(ReportTargetType targetType, int targetId, CancellationToken cancellationToken = default) => _context.Reports.AsNoTracking().Include(report => report.ReporterUser).Include(report => report.ReviewedByUser).Include(report => report.ModerationActions).ThenInclude(action => action.ModeratorUser).Where(report => report.TargetType == targetType && ((targetType == ReportTargetType.Post && report.TargetPostId == targetId) || (targetType == ReportTargetType.User && report.TargetUserId == targetId) || (targetType == ReportTargetType.Comment && report.TargetCommentId == targetId))).OrderByDescending(report => report.CreatedAt).ToListAsync(cancellationToken);
 
-        public Task<bool> HasPendingPostReportAsync(int reporterUserId, int postId) => HasOpenReportAsync(reporterUserId, ReportTargetType.Post, postId);
+        public Task<bool> HasPendingPostReportAsync(int reporterUserId, int postId, CancellationToken cancellationToken = default) => HasOpenReportAsync(reporterUserId, ReportTargetType.Post, postId, cancellationToken);
 
-        public Task<bool> HasPendingUserReportAsync(int reporterUserId, int targetUserId) => HasOpenReportAsync(reporterUserId, ReportTargetType.User, targetUserId);
+        public Task<bool> HasPendingUserReportAsync(int reporterUserId, int targetUserId, CancellationToken cancellationToken = default) => HasOpenReportAsync(reporterUserId, ReportTargetType.User, targetUserId, cancellationToken);
 
         public Task<bool> HasPendingCommentReportAsync(int reporterUserId, int commentId, CancellationToken cancellationToken = default) => _context.Reports.AnyAsync(report => report.ReporterUserId == reporterUserId && report.TargetType == ReportTargetType.Comment && report.TargetCommentId == commentId && (report.Status == ReportStatus.Pending || report.Status == ReportStatus.InReview), cancellationToken);
 
@@ -67,9 +67,9 @@ namespace blogapp_server.Persistence.Repositories
                 query = query.Where(report => report.CreatedAt <= toDate.Value);
             }
 
-            var groupedQuery = query.GroupBy(report => new { report.TargetType, TargetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetType == ReportTargetType.User ? report.TargetUserId : report.TargetCommentId }).Select(group => new { group.Key.TargetType, group.Key.TargetId, LastReportDate = group.Max(report => report.CreatedAt) });
+            var groupedQuery = query.GroupBy(report => new { report.TargetType, TargetId = report.TargetType == ReportTargetType.Post ? report.TargetPostId : report.TargetType == ReportTargetType.User ? report.TargetUserId : report.TargetCommentId }).Select(group => new { group.Key.TargetType, group.Key.TargetId, LastReportDate = group.Max(report => report.CreatedAt), Priority = group.Max(report => report.Reason == ReportReason.SelfHarm || report.Reason == ReportReason.Threat || report.Reason == ReportReason.PersonalInformation ? 4 : report.Reason == ReportReason.HateSpeech || report.Reason == ReportReason.Violence || report.Reason == ReportReason.SexualContent || report.Reason == ReportReason.Harassment ? 3 : report.Reason == ReportReason.Misinformation || report.Reason == ReportReason.Scam || report.Reason == ReportReason.Impersonation ? 2 : 1) });
             var totalCount = await groupedQuery.CountAsync(cancellationToken);
-            var pageKeys = await groupedQuery.OrderByDescending(group => group.LastReportDate).Skip((page - 1) * size).Take(size).ToListAsync(cancellationToken);
+            var pageKeys = await groupedQuery.OrderByDescending(group => group.Priority).ThenByDescending(group => group.LastReportDate).Skip((page - 1) * size).Take(size).ToListAsync(cancellationToken);
             var postIds = pageKeys.Where(key => key.TargetType == ReportTargetType.Post && key.TargetId.HasValue).Select(key => key.TargetId!.Value).ToList();
             var userIds = pageKeys.Where(key => key.TargetType == ReportTargetType.User && key.TargetId.HasValue).Select(key => key.TargetId!.Value).ToList();
             var commentIds = pageKeys.Where(key => key.TargetType == ReportTargetType.Comment && key.TargetId.HasValue).Select(key => key.TargetId!.Value).ToList();
@@ -87,7 +87,7 @@ namespace blogapp_server.Persistence.Repositories
 
         public Task<int> CountRecentReportsByUserAsync(int reporterUserId, DateTime since, CancellationToken cancellationToken = default) => _context.Reports.CountAsync(report => report.ReporterUserId == reporterUserId && report.CreatedAt >= since, cancellationToken);
 
-        private Task<bool> HasOpenReportAsync(int reporterUserId, ReportTargetType targetType, int targetId) => _context.Reports.AnyAsync(report => report.ReporterUserId == reporterUserId && report.TargetType == targetType && ((targetType == ReportTargetType.Post && report.TargetPostId == targetId) || (targetType == ReportTargetType.User && report.TargetUserId == targetId)) && (report.Status == ReportStatus.Pending || report.Status == ReportStatus.InReview));
+        private Task<bool> HasOpenReportAsync(int reporterUserId, ReportTargetType targetType, int targetId, CancellationToken cancellationToken = default) => _context.Reports.AnyAsync(report => report.ReporterUserId == reporterUserId && report.TargetType == targetType && ((targetType == ReportTargetType.Post && report.TargetPostId == targetId) || (targetType == ReportTargetType.User && report.TargetUserId == targetId)) && (report.Status == ReportStatus.Pending || report.Status == ReportStatus.InReview), cancellationToken);
 
         private IQueryable<Report> Details() => _context.Reports.Include(report => report.ReporterUser).Include(report => report.TargetPost).Include(report => report.TargetUser).Include(report => report.TargetComment).ThenInclude(comment => comment!.User).Include(report => report.ReviewedByUser);
     }

@@ -1,21 +1,25 @@
 using blogapp_server.Application.Exceptions;
+using blogapp_server.Application.Common.Helpers;
+using blogapp_server.Application.Common.Options;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace blogapp_server.Application.Features.Report.Commands.CreateCommentReport
 {
     public class CreateCommentReportCommandHandler : IRequestHandler<CreateCommentReportCommand, CreateCommentReportCommandResponse>
     {
-        private const int DailyReportLimit = 10;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<CreateCommentReportCommandHandler> _logger;
+        private readonly ReportPolicyOptions _reportPolicyOptions;
 
-        public CreateCommentReportCommandHandler(IUnitOfWork unitOfWork, ILogger<CreateCommentReportCommandHandler> logger)
+        public CreateCommentReportCommandHandler(IUnitOfWork unitOfWork, ILogger<CreateCommentReportCommandHandler> logger, IOptions<ReportPolicyOptions> reportPolicyOptions)
         {
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _reportPolicyOptions = reportPolicyOptions.Value;
         }
 
         public async Task<CreateCommentReportCommandResponse> Handle(CreateCommentReportCommand request, CancellationToken cancellationToken)
@@ -32,9 +36,10 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateCommentRepor
             }
 
             var recentReportCount = await _unitOfWork.ReportRepository.CountRecentReportsByUserAsync(request.UserId, DateTime.UtcNow.AddHours(-24), cancellationToken);
-            if (recentReportCount >= DailyReportLimit)
+            var dailyReportLimit = Math.Max(1, _reportPolicyOptions.DailyReportLimit);
+            if (recentReportCount >= dailyReportLimit)
             {
-                throw new TooManyRequestsException("24 saat içinde en fazla 10 şikayet oluşturabilirsiniz.");
+                throw new TooManyRequestsException($"24 saat içinde en fazla {dailyReportLimit} şikayet oluşturabilirsiniz.");
             }
 
             if (await _unitOfWork.ReportRepository.HasPendingCommentReportAsync(request.UserId, request.CommentId, cancellationToken))
@@ -49,6 +54,10 @@ namespace blogapp_server.Application.Features.Report.Commands.CreateCommentRepor
                 TargetPostId = null,
                 TargetUserId = null,
                 TargetCommentId = request.CommentId,
+                TargetOwnerUserId = comment.UserId,
+                TargetOwnerUserNameSnapshot = comment.User?.UserName,
+                TargetOwnerFullNameSnapshot = comment.User?.FullName,
+                TargetContentSnapshot = ReportSnapshotHelper.CreateContentSnapshot(comment.Content),
                 Reason = request.Reason,
                 Description = request.Description?.Trim(),
                 Status = ReportStatus.Pending,

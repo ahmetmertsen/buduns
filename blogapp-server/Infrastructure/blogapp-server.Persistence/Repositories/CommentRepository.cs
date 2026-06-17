@@ -17,7 +17,7 @@ namespace blogapp_server.Persistence.Repositories
             _context = context;
         }
 
-        public Task<Comment?> GetVisibleByIdAsync(int id, CancellationToken cancellationToken = default) => VisibleComments().AsNoTracking().FirstOrDefaultAsync(comment => comment.Id == id, cancellationToken);
+        public Task<Comment?> GetVisibleByIdAsync(int id, CancellationToken cancellationToken = default) => VisibleComments().Include(comment => comment.User).AsNoTracking().FirstOrDefaultAsync(comment => comment.Id == id, cancellationToken);
 
         public Task<Comment?> GetForMutationAsync(int id, CancellationToken cancellationToken = default) => _context.Comments.Include(comment => comment.Post).FirstOrDefaultAsync(comment => comment.Id == id, cancellationToken);
 

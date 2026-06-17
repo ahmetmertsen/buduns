@@ -1,5 +1,6 @@
 ﻿using blogapp_server.Application;
 using blogapp_server.Infrastructure;
+using blogapp_server.Application.Common.Options;
 using blogapp_server.Application.Abstractions.Services;
 using blogapp_server.Persistence;
 using blogapp_server.WebAPI.Configurations.Serilog.ColumnWriters;
@@ -37,6 +38,8 @@ namespace blogapp_server.WebAPI
             builder.Services.AddScoped<IClientContext, HttpClientContext>();
             builder.Services.Configure<SensitiveEndpointRateLimitOptions>(
                 builder.Configuration.GetSection("SensitiveEndpointRateLimit"));
+            builder.Services.Configure<ReportPolicyOptions>(
+                builder.Configuration.GetSection(ReportPolicyOptions.SectionName));
             
             #region CORS
             builder.Services.AddCors(options =>

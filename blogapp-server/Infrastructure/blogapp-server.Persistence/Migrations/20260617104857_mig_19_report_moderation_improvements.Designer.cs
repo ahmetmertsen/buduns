@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using blogapp_server.Persistence.Context;
@@ -11,9 +12,10 @@ using blogapp_server.Persistence.Context;
 namespace blogapp_server.Persistence.Migrations
 {
     [DbContext(typeof(BlogAppDbContext))]
-    partial class BlogAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617104857_mig_19_report_moderation_improvements")]
+    partial class mig_19_report_moderation_improvements
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -81,7 +83,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasIndex("UserId", "RevokedAt");
 
-                    b.ToTable("AuthSessions", (string)null);
+                    b.ToTable("AuthSessions");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Bookmark", b =>
@@ -118,7 +120,7 @@ namespace blogapp_server.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Bookmarks_UserId_PostId");
 
-                    b.ToTable("Bookmarks", (string)null);
+                    b.ToTable("Bookmarks");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Comment", b =>
@@ -163,7 +165,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasIndex("UserId", "Status", "CreatedAt");
 
-                    b.ToTable("Comments", (string)null);
+                    b.ToTable("Comments");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Endpoint", b =>
@@ -209,7 +211,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasIndex("MenuId");
 
-                    b.ToTable("Endpoints", (string)null);
+                    b.ToTable("Endpoints");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Follower", b =>
@@ -245,7 +247,7 @@ namespace blogapp_server.Persistence.Migrations
                     b.HasIndex("FollowerId", "FollowingId")
                         .IsUnique();
 
-                    b.ToTable("Followers", (string)null);
+                    b.ToTable("Followers");
 
                     b.HasCheckConstraint("CK_Followers_DifferentUsers", "\"FollowerId\" <> \"FollowingId\"");
                 });
@@ -405,7 +407,7 @@ namespace blogapp_server.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Likes_UserId_PostId");
 
-                    b.ToTable("Likes", (string)null);
+                    b.ToTable("Likes");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Menu", b =>
@@ -434,7 +436,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Menus", (string)null);
+                    b.ToTable("Menus");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.ModerationAction", b =>
@@ -501,7 +503,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasIndex("TargetType", "TargetPostId", "TargetUserId", "TargetCommentId");
 
-                    b.ToTable("ModerationActions", (string)null);
+                    b.ToTable("ModerationActions");
 
                     b.HasCheckConstraint("CK_ModerationActions_Target", "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL AND \"TargetCommentId\" IS NULL) OR (\"TargetType\" = 1 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NOT NULL AND \"TargetCommentId\" IS NULL) OR (\"TargetType\" = 2 AND \"TargetPostId\" IS NULL AND \"TargetCommentId\" IS NOT NULL)");
                 });
@@ -564,7 +566,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasIndex("Type", "UserId", "ActorUserId", "PostId", "CreatedAt");
 
-                    b.ToTable("Notifications", (string)null);
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Post", b =>
@@ -577,7 +579,8 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -604,9 +607,11 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "Status", "CreatedAt");
 
-                    b.ToTable("Posts", (string)null);
+                    b.HasIndex("Status", "isPublished", "isActive", "isDeleted", "CreatedAt");
+
+                    b.ToTable("Posts");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Report", b =>
@@ -645,6 +650,21 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.Property<int?>("TargetCommentId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("TargetContentSnapshot")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("TargetOwnerFullNameSnapshot")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int?>("TargetOwnerUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TargetOwnerUserNameSnapshot")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<int?>("TargetPostId")
                         .HasColumnType("integer");
@@ -690,12 +710,12 @@ namespace blogapp_server.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"TargetType\" = 1 AND \"Status\" IN (1, 2)");
 
+                    b.HasIndex("TargetType", "TargetPostId", "TargetUserId", "Status");
+
                     b.HasIndex("ReporterUserId", "TargetType", "TargetPostId", "TargetUserId", "TargetCommentId")
                         .HasDatabaseName("IX_Reports_ReporterUserId_TargetType_TargetIds");
 
-                    b.HasIndex("TargetType", "TargetPostId", "TargetUserId", "Status");
-
-                    b.ToTable("Reports", (string)null);
+                    b.ToTable("Reports");
 
                     b.HasCheckConstraint("CK_Reports_Target", "(\"TargetType\" = 0 AND \"TargetPostId\" IS NOT NULL AND \"TargetUserId\" IS NULL AND \"TargetCommentId\" IS NULL) OR (\"TargetType\" = 1 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NOT NULL AND \"TargetCommentId\" IS NULL) OR (\"TargetType\" = 2 AND \"TargetPostId\" IS NULL AND \"TargetUserId\" IS NULL AND \"TargetCommentId\" IS NOT NULL)");
                 });
@@ -737,7 +757,7 @@ namespace blogapp_server.Persistence.Migrations
                         .HasDatabaseName("UX_Tags_NormalizedName_Active")
                         .HasFilter("\"isDeleted\" = false AND \"isActive\" = true");
 
-                    b.ToTable("Tags", (string)null);
+                    b.ToTable("Tags");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.Utility", b =>
@@ -770,7 +790,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Utilities", (string)null);
+                    b.ToTable("Utilities");
                 });
 
             modelBuilder.Entity("EndpointRole", b =>
@@ -785,7 +805,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasIndex("RolesId");
 
-                    b.ToTable("EndpointRole", (string)null);
+                    b.ToTable("EndpointRole");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -903,7 +923,7 @@ namespace blogapp_server.Persistence.Migrations
 
                     b.HasIndex("TagsId");
 
-                    b.ToTable("PostTag", (string)null);
+                    b.ToTable("PostTag");
                 });
 
             modelBuilder.Entity("blogapp_server.Domain.Entities.AuthSession", b =>

@@ -42,16 +42,25 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                 throw new BadRequestException("Bu şikayet zaten sonuçlandırılmış.");
             }
 
+            var targetId = GetTargetId(report);
+            var openReports = await _unitOfWork.ReportRepository.GetOpenReportsForTargetAsync(report.TargetType, targetId, cancellationToken);
+            EnsureReportsCanBeHandledByModerator(openReports, request.UserId);
+
             if (request.Status == ReportStatus.InReview)
             {
-                report.Status = ReportStatus.InReview;
-                report.ReviewNote = request.ReviewNote?.Trim();
-                report.ReviewedByUserId = request.UserId;
-                report.UpdateAt = DateTime.UtcNow;
-                _unitOfWork.ReportRepository.Update(report);
+                var inReviewAt = DateTime.UtcNow;
+                foreach (var openReport in openReports)
+                {
+                    openReport.Status = ReportStatus.InReview;
+                    openReport.ReviewNote = request.ReviewNote?.Trim();
+                    openReport.ReviewedByUserId = request.UserId;
+                    openReport.UpdateAt = inReviewAt;
+                    _unitOfWork.ReportRepository.Update(openReport);
+                }
+
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
-                _logger.LogInformation("Report review started. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}", report.Id, request.UserId);
-                return new ReviewReportCommandResponse(true, "Şikayet incelemeye alındı.");
+                _logger.LogInformation("Report review started. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}, TargetType: {TargetType}, TargetId: {TargetId}, ClaimedReportCount: {ClaimedReportCount}", report.Id, request.UserId, report.TargetType, targetId, openReports.Count);
+                return new ReviewReportCommandResponse(true, "Şikayet ve aynı hedefe ait açık şikayetler incelemeye alındı.");
             }
 
             ValidateActionForTarget(report, request.ActionType);
@@ -62,8 +71,6 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
             }
 
             var actionExpiresAt = await ApplyModerationActionAsync(report, request, cancellationToken);
-            var targetId = GetTargetId(report);
-            var openReports = await _unitOfWork.ReportRepository.GetOpenReportsForTargetAsync(report.TargetType, targetId, cancellationToken);
             var reviewedAt = DateTime.UtcNow;
 
             foreach (var openReport in openReports)
@@ -166,6 +173,14 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     return null;
                 default:
                     throw new BadRequestException("Desteklenmeyen moderasyon aksiyonu.");
+            }
+        }
+
+        private static void EnsureReportsCanBeHandledByModerator(IEnumerable<ReportEntity> reports, int moderatorUserId)
+        {
+            if (reports.Any(report => report.Status == ReportStatus.InReview && report.ReviewedByUserId.HasValue && report.ReviewedByUserId.Value != moderatorUserId))
+            {
+                throw new BadRequestException("Bu hedefe ait açık şikayetlerden biri başka bir moderatör tarafından inceleniyor.");
             }
         }
 

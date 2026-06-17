@@ -17,6 +17,7 @@ namespace blogapp_server.Application.Dtos
         public string? ReporterEmail { get; set; }
 
         public ReportTargetType TargetType { get; set; }
+        public ReportPriority Priority { get; set; }
 
         public int? TargetPostId { get; set; }
         public string? TargetPostContent { get; set; }
@@ -30,6 +31,11 @@ namespace blogapp_server.Application.Dtos
         public string? TargetCommentContent { get; set; }
         public int? TargetCommentUserId { get; set; }
         public string? TargetCommentUserName { get; set; }
+
+        public int? TargetOwnerUserId { get; set; }
+        public string? TargetOwnerUserName { get; set; }
+        public string? TargetOwnerFullName { get; set; }
+        public string? TargetContentSnapshot { get; set; }
 
         public ReportReason Reason { get; set; }
         public string? Description { get; set; }

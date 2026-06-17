@@ -23,9 +23,9 @@ namespace blogapp_server.Application.Repositories
 
         Task<List<Report>> GetReportsForTargetAsync(ReportTargetType targetType, int targetId, CancellationToken cancellationToken = default);
 
-        Task<bool> HasPendingPostReportAsync(int reporterUserId, int postId);
+        Task<bool> HasPendingPostReportAsync(int reporterUserId, int postId, CancellationToken cancellationToken = default);
 
-        Task<bool> HasPendingUserReportAsync(int reporterUserId, int targetUserId);
+        Task<bool> HasPendingUserReportAsync(int reporterUserId, int targetUserId, CancellationToken cancellationToken = default);
 
         Task<bool> HasPendingCommentReportAsync(int reporterUserId, int commentId, CancellationToken cancellationToken = default);
 

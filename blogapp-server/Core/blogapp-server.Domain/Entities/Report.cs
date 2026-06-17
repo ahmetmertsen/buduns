@@ -17,6 +17,10 @@ namespace blogapp_server.Domain.Entities
         public int? TargetPostId { get; set; }
         public int? TargetUserId { get; set; }
         public int? TargetCommentId { get; set; }
+        public int? TargetOwnerUserId { get; set; }
+        public string? TargetOwnerUserNameSnapshot { get; set; }
+        public string? TargetOwnerFullNameSnapshot { get; set; }
+        public string? TargetContentSnapshot { get; set; }
 
         public ReportReason Reason { get; set; }
         public string? Description { get; set; }
