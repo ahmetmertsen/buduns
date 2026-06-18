@@ -47,9 +47,6 @@ namespace blogapp_server.Persistence.Context
 
             modelBuilder.Entity<User>(entity =>
             {
-                entity.Property(user => user.IsFullNameVisible)
-                    .HasDefaultValue(false);
-
                 entity.Property(user => user.Status)
                     .HasDefaultValue(Domain.Enums.UserStatus.Active);
 

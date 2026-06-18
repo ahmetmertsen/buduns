@@ -194,7 +194,6 @@ namespace blogapp_server.Persistence.Services
             }
 
             user.FullName = request.FullName;
-            user.IsFullNameVisible = request.IsFullNameVisible;
             user.Bio = request.Bio;
             user.ImageUrl = request.ImageUrl;
 
@@ -277,7 +276,6 @@ namespace blogapp_server.Persistence.Services
                     Id = user.Id,
                     UserName = user.UserName ?? string.Empty,
                     FullName = user.FullName,
-                    IsFullNameVisible = user.IsFullNameVisible,
                     Email = user.Email ?? string.Empty,
                     EmailConfirmed = user.EmailConfirmed,
                     Status = user.Status,
@@ -318,8 +316,7 @@ namespace blogapp_server.Persistence.Services
         {
             Id = user.Id,
             UserName = user.UserName!,
-            FullName = user.IsFullNameVisible ? user.FullName : null,
-            IsFullNameVisible = user.IsFullNameVisible,
+            FullName = user.FullName,
             Bio = user.Bio,
             ImageUrl = user.ImageUrl,
             FollowerCount = user.Followers.Count(follow => follow.isActive && !follow.isDeleted && follow.FollowerUser.Status != Domain.Enums.UserStatus.Banned),

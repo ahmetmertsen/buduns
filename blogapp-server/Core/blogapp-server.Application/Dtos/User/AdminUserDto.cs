@@ -7,7 +7,6 @@ namespace blogapp_server.Application.Dtos.User
         public int Id { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
-        public bool IsFullNameVisible { get; set; }
         public string Email { get; set; } = string.Empty;
         public bool EmailConfirmed { get; set; }
         public UserStatus Status { get; set; }

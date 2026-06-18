@@ -10,7 +10,6 @@ namespace blogapp_server.Application.Dtos.User
     {
         public int UserId { get; set; }
         public string FullName { get; set; }
-        public bool IsFullNameVisible { get; set; }
         public string Bio { get; set; }
         public string ImageUrl { get; set; }
     }
