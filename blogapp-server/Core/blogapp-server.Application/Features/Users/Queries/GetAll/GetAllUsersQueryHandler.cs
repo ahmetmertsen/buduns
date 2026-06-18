@@ -1,5 +1,6 @@
 using blogapp_server.Application.Abstractions.Services;
 using blogapp_server.Application.Dtos;
+using blogapp_server.Application.Dtos.User;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace blogapp_server.Application.Features.Users.Queries.GetAll
 {
-    public class GetAllUsersQueryHandler : IRequestHandler<GetAllUsersQuery, List<UserDto>>
+    public class GetAllUsersQueryHandler : IRequestHandler<GetAllUsersQuery, PagedResponse<AdminUserDto>>
     {
         private readonly IUserService _userService;
 
@@ -18,10 +19,10 @@ namespace blogapp_server.Application.Features.Users.Queries.GetAll
             _userService = userService;
         }
 
-        public async Task<List<UserDto>> Handle(GetAllUsersQuery request, CancellationToken cancellationToken)
+        public async Task<PagedResponse<AdminUserDto>> Handle(GetAllUsersQuery request, CancellationToken cancellationToken)
         {
-            var users = await _userService.GetAllUsersAsync();
-            return users;
+            var result = await _userService.GetPagedUsersAsync(request.Page, request.Size, request.Search, request.Status, request.EmailConfirmed, cancellationToken);
+            return new PagedResponse<AdminUserDto> { Items = result.Items, Page = request.Page, Size = request.Size, TotalCount = result.TotalCount };
         }
     }
 }

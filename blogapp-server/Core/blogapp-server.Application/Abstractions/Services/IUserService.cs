@@ -1,5 +1,6 @@
 ﻿using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Dtos.User;
+using blogapp_server.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,10 +16,10 @@ namespace blogapp_server.Application.Abstractions.Services
         Task<UpdateUserMailVerifyResponse> UpdateUserMailVerify(UpdateUserMailVerifyRequest request);
         Task<UpdateUserProfileResponse> UpdateUserProfile(UpdateUserProfileRequest request);
         Task<UpdateUserEmailResponse> UpdateUserEmailAsync(UpdateUserEmailRequest request);
-        Task<List<UserDto>> GetAllUsersAsync();
+        Task<(List<AdminUserDto> Items, int TotalCount)> GetPagedUsersAsync(int page, int size, string? search, UserStatus? status, bool? emailConfirmed, CancellationToken cancellationToken);
         Task<UserDto> GetUserById(int userId);
         Task<UserDto> GetUserByUserName(string userName);
-        Task AssignRoleToUserAsync(int userId, string[] roles, CancellationToken cancellationToken);
+        Task AssignRoleToUserAsync(int actorUserId, int targetUserId, string[] roles, CancellationToken cancellationToken);
         Task<string[]> GetRolesToUserAsync(int userId);
         Task<bool> HasRolePermissionToEndpointAsync(int userId, string code);
     }

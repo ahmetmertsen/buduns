@@ -25,6 +25,7 @@ namespace blogapp_server.Application.Features.Users.Commands.Update.UpdateProfil
             {
                 UserId = commandRequest.UserId,
                 FullName = commandRequest.FullName,
+                IsFullNameVisible = commandRequest.IsFullNameVisible,
                 Bio = commandRequest.Bio,
                 ImageUrl = commandRequest.ImageUrl,
             };

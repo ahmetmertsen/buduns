@@ -31,6 +31,7 @@ namespace blogapp_server.Application.Mapping
 
             //Dto
             CreateMap<User, UserDto>()
+                .ForMember(destination => destination.FullName, options => options.MapFrom(source => source.IsFullNameVisible ? source.FullName : null))
                 .ForMember(destination => destination.FollowerCount, options => options.Ignore())
                 .ForMember(destination => destination.FollowingCount, options => options.Ignore());
         }

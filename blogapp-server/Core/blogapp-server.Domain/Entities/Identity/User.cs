@@ -11,6 +11,7 @@ namespace blogapp_server.Domain.Entities.Identity
     public class User : IdentityUser<int>
     {
         public string FullName { get; set; }
+        public bool IsFullNameVisible { get; set; }
         public string? Bio { get; set; }
         public string? ImageUrl { get; set; }
         public DateTime? EmailVerificationSentAt { get; set; }

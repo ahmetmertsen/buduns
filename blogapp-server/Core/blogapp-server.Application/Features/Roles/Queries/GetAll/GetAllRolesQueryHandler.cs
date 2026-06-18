@@ -21,7 +21,7 @@ namespace blogapp_server.Application.Features.Roles.Queries.GetAll
 
         public async Task<List<RoleDto>> Handle(GetAllRolesQuery request, CancellationToken cancellationToken)
         {
-            var roles = await _roleService.GetAllRoles();
+            var roles = await _roleService.GetAllRoles(cancellationToken);
             return roles;
         }
     }

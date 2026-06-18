@@ -79,9 +79,9 @@ namespace blogapp_server.WebAPI.Controllers
         [AuthorizeDefinition(Menu = AuthorizeDefinitionConstants.Users, ActionType = ActionType.Reading, Definition = "GetAll Users")]
         [HttpGet]
         [Route("getAllUsers")]
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers([FromQuery] GetAllUsersQuery request)
         {
-            var response = await _mediatR.Send(new GetAllUsersQuery());
+            var response = await _mediatR.Send(request);
             return Ok(response);
         }
 

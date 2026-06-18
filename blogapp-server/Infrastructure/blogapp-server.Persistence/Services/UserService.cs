@@ -8,6 +8,7 @@ using blogapp_server.Application.Helpers;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Entities.Identity;
+using blogapp_server.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -193,6 +194,7 @@ namespace blogapp_server.Persistence.Services
             }
 
             user.FullName = request.FullName;
+            user.IsFullNameVisible = request.IsFullNameVisible;
             user.Bio = request.Bio;
             user.ImageUrl = request.ImageUrl;
 
@@ -243,9 +245,50 @@ namespace blogapp_server.Persistence.Services
             }
         }
 
-        public async Task<List<UserDto>> GetAllUsersAsync()
+        public async Task<(List<AdminUserDto> Items, int TotalCount)> GetPagedUsersAsync(int page, int size, string? search, UserStatus? status, bool? emailConfirmed, CancellationToken cancellationToken)
         {
-            return await ProjectUsers().ToListAsync();
+            var query = _userManager.Users.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                query = query.Where(user => (user.UserName != null && EF.Functions.ILike(user.UserName, $"%{keyword}%")) || EF.Functions.ILike(user.FullName, $"%{keyword}%") || (user.Email != null && EF.Functions.ILike(user.Email, $"%{keyword}%")));
+            }
+
+            if (status.HasValue)
+            {
+                query = query.Where(user => user.Status == status.Value);
+            }
+
+            if (emailConfirmed.HasValue)
+            {
+                query = query.Where(user => user.EmailConfirmed == emailConfirmed.Value);
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+            var users = await query.OrderBy(user => user.UserName).ThenBy(user => user.Id).Skip((page - 1) * size).Take(size).ToListAsync(cancellationToken);
+            var items = new List<AdminUserDto>(users.Count);
+
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                items.Add(new AdminUserDto
+                {
+                    Id = user.Id,
+                    UserName = user.UserName ?? string.Empty,
+                    FullName = user.FullName,
+                    IsFullNameVisible = user.IsFullNameVisible,
+                    Email = user.Email ?? string.Empty,
+                    EmailConfirmed = user.EmailConfirmed,
+                    Status = user.Status,
+                    SuspendedUntil = user.SuspendedUntil,
+                    LockoutEnd = user.LockoutEnd,
+                    IsLockedOut = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow,
+                    Roles = roles.OrderBy(role => role).ToArray()
+                });
+            }
+
+            return (items, totalCount);
         }
 
         public async Task<UserDto> GetUserById(int userId)
@@ -275,25 +318,90 @@ namespace blogapp_server.Persistence.Services
         {
             Id = user.Id,
             UserName = user.UserName!,
-            FullName = user.FullName,
+            FullName = user.IsFullNameVisible ? user.FullName : null,
+            IsFullNameVisible = user.IsFullNameVisible,
             Bio = user.Bio,
             ImageUrl = user.ImageUrl,
             FollowerCount = user.Followers.Count(follow => follow.isActive && !follow.isDeleted && follow.FollowerUser.Status != Domain.Enums.UserStatus.Banned),
             FollowingCount = user.Followings.Count(follow => follow.isActive && !follow.isDeleted && follow.FollowingUser.Status != Domain.Enums.UserStatus.Banned)
         });
 
-        public async Task AssignRoleToUserAsync(int userId, string[] roles, CancellationToken cancellationToken)
+        public async Task AssignRoleToUserAsync(int actorUserId, int targetUserId, string[] roles, CancellationToken cancellationToken)
         {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user != null)
+            var user = await _userManager.FindByIdAsync(targetUserId.ToString());
+            if (user == null)
             {
-                var userRoles = await _userManager.GetRolesAsync(user);
-                await _userManager.RemoveFromRolesAsync(user, userRoles);
-
-                await _userManager.AddToRolesAsync(user, roles);
-                await _userManager.UpdateSecurityStampAsync(user);
-                await _authSessionService.RevokeAllSessionsAsync(user.Id, "Roles changed", cancellationToken);
+                throw new NotFoundException("Kullanıcı bulunamadı.");
             }
+
+            var requestedRoleNames = (roles ?? Array.Empty<string>()).Where(role => !string.IsNullOrWhiteSpace(role)).Select(role => role.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (requestedRoleNames.Length == 0)
+            {
+                throw new BadRequestException("Kullanıcıya en az bir rol atanmalıdır.");
+            }
+
+            var availableRoleNames = await _roleManager.Roles.AsNoTracking().Where(role => role.Name != null).Select(role => role.Name!).ToListAsync(cancellationToken);
+            var invalidRoles = requestedRoleNames.Where(role => !availableRoleNames.Contains(role, StringComparer.OrdinalIgnoreCase)).ToArray();
+            if (invalidRoles.Length > 0)
+            {
+                throw new BadRequestException($"Tanımlı olmayan roller gönderildi: {string.Join(", ", invalidRoles)}");
+            }
+
+            var resolvedRoles = requestedRoleNames.Select(role => availableRoleNames.First(availableRole => string.Equals(availableRole, role, StringComparison.OrdinalIgnoreCase))).ToArray();
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            var removesAdminRole = currentRoles.Contains(RoleConstants.Admin, StringComparer.OrdinalIgnoreCase) && !resolvedRoles.Contains(RoleConstants.Admin, StringComparer.OrdinalIgnoreCase);
+
+            if (actorUserId == targetUserId && removesAdminRole)
+            {
+                throw new BadRequestException("Kendi Admin rolünüzü kaldıramazsınız.");
+            }
+
+            if (removesAdminRole)
+            {
+                var adminUsers = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
+                if (adminUsers.Count <= 1)
+                {
+                    throw new BadRequestException("Sistemde en az bir Admin kullanıcısı bulunmalıdır.");
+                }
+            }
+
+            var rolesToAdd = resolvedRoles.Except(currentRoles, StringComparer.OrdinalIgnoreCase).ToArray();
+            var rolesToRemove = currentRoles.Except(resolvedRoles, StringComparer.OrdinalIgnoreCase).ToArray();
+            if (rolesToAdd.Length == 0 && rolesToRemove.Length == 0)
+            {
+                return;
+            }
+
+            if (rolesToAdd.Length > 0)
+            {
+                var addResult = await _userManager.AddToRolesAsync(user, rolesToAdd);
+                if (!addResult.Succeeded)
+                {
+                    throw new BadRequestException($"Roller atanamadı: {GetIdentityErrors(addResult)}");
+                }
+            }
+
+            if (rolesToRemove.Length > 0)
+            {
+                var removeResult = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+                if (!removeResult.Succeeded)
+                {
+                    if (rolesToAdd.Length > 0)
+                    {
+                        await _userManager.RemoveFromRolesAsync(user, rolesToAdd);
+                    }
+
+                    throw new BadRequestException($"Mevcut roller kaldırılamadı: {GetIdentityErrors(removeResult)}");
+                }
+            }
+
+            var securityStampResult = await _userManager.UpdateSecurityStampAsync(user);
+            if (!securityStampResult.Succeeded)
+            {
+                throw new BadRequestException($"Rol değişikliği güvenlik bilgisine yansıtılamadı: {GetIdentityErrors(securityStampResult)}");
+            }
+
+            await _authSessionService.RevokeAllSessionsAsync(user.Id, "Roles changed", cancellationToken);
         }
 
 
@@ -335,6 +443,8 @@ namespace blogapp_server.Persistence.Services
 
             return userRoles.Intersect(endpointRoles).Any();
         }
+
+        private static string GetIdentityErrors(IdentityResult result) => string.Join(", ", result.Errors.Select(error => error.Description));
 
     }
 }

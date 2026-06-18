@@ -1,42 +1,25 @@
-﻿using blogapp_server.Application.Abstractions.Services;
+using blogapp_server.Application.Abstractions.Services;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace blogapp_server.Application.Features.Roles.Commands.Create
 {
     public class CreateRoleCommandHandler : IRequestHandler<CreateRoleCommand, CreateRoleCommandResponse>
     {
         private readonly IRoleService _roleService;
+        private readonly ILogger<CreateRoleCommandHandler> _logger;
 
-        public CreateRoleCommandHandler(IRoleService roleService)
+        public CreateRoleCommandHandler(IRoleService roleService, ILogger<CreateRoleCommandHandler> logger)
         {
             _roleService = roleService;
+            _logger = logger;
         }
 
         public async Task<CreateRoleCommandResponse> Handle(CreateRoleCommand request, CancellationToken cancellationToken)
         {
-            var result = await _roleService.CreateRole(request.Name);
-
-            CreateRoleCommandResponse response = new()
-            {
-                Succeeded = true,
-                Message = ""
-            };
-            if (result)
-            {
-                response.Succeeded = true;
-                response.Message = "Role başarıyla eklendi";
-            }
-            else
-            {
-                response.Succeeded = false;
-                response.Message = "Role ekleme sırasında hata oluştu";
-            }
-            return response;
+            await _roleService.CreateRole(request.Name, cancellationToken);
+            _logger.LogInformation("Role created. RoleName: {RoleName}", request.Name.Trim());
+            return new CreateRoleCommandResponse { Succeeded = true, Message = "Rol başarıyla eklendi." };
         }
     }
 }

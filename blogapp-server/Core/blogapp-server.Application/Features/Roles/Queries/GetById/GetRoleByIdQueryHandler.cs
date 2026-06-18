@@ -20,7 +20,7 @@ namespace blogapp_server.Application.Features.Roles.Queries.GetById
 
         public async Task<RoleDto> Handle(GetRoleByIdQuery request, CancellationToken cancellationToken)
         {
-            var role = await _roleService.GetRoleById(request.Id);
+            var role = await _roleService.GetRoleById(request.Id, cancellationToken);
             return role;
         }
     }
