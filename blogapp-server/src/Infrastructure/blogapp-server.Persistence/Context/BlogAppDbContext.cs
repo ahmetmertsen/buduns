@@ -176,6 +176,7 @@ namespace blogapp_server.Persistence.Context
 
             modelBuilder.Entity<Report>(entity =>
             {
+                entity.UseXminAsConcurrencyToken();
                 entity.HasKey(r => r.Id);
 
                 entity.HasCheckConstraint(

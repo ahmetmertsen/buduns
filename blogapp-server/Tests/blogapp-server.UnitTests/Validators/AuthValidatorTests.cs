@@ -38,12 +38,7 @@ public class AuthValidatorTests
     [InlineData("ahmet", "", "ahmet@example.com", "123456", "FullName")]
     [InlineData("ahmet", "Ahmet Mert", "invalid-email", "123456", "Email")]
     [InlineData("ahmet", "Ahmet Mert", "ahmet@example.com", "12345", "Password")]
-    public async Task Register_InvalidField_ShouldFail(
-        string userName,
-        string fullName,
-        string email,
-        string password,
-        string propertyName)
+    public async Task Register_InvalidField_ShouldFail(string userName, string fullName, string email, string password, string propertyName)
     {
         var result = await new RegisterUserCommandValidator().ValidateAsync(
             new RegisterUserCommand(userName, fullName, email, password));

@@ -664,6 +664,11 @@ namespace blogapp_server.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<uint>("xmin")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .IsConcurrencyToken()
+                        .HasColumnType("xid");
+
                     b.Property<int?>("TargetPostId")
                         .HasColumnType("integer");
 

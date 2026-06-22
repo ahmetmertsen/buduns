@@ -7,6 +7,7 @@ using blogapp_server.Domain.Entities.Identity;
 using blogapp_server.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ReportEntity = blogapp_server.Domain.Entities.Report;
 
@@ -58,7 +59,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
                     _unitOfWork.ReportRepository.Update(openReport);
                 }
 
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await SaveChangesWithConcurrencyCheckAsync(cancellationToken);
                 _logger.LogInformation("Report review started. ReportId: {ReportId}, ModeratorUserId: {ModeratorUserId}, TargetType: {TargetType}, TargetId: {TargetId}, ClaimedReportCount: {ClaimedReportCount}", report.Id, request.UserId, report.TargetType, targetId, openReports.Count);
                 return new ReviewReportCommandResponse(true, "Şikayet ve aynı hedefe ait açık şikayetler incelemeye alındı.");
             }
@@ -101,7 +102,7 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
             };
             await _unitOfWork.ModerationActionRepository.AddAsync(moderationAction);
             await AddReporterNotificationsAsync(openReports, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await SaveChangesWithConcurrencyCheckAsync(cancellationToken);
 
             if (actionTargetUserId.HasValue && (request.ActionType == ModerationActionType.SuspendUser || request.ActionType == ModerationActionType.BanUser))
             {
@@ -252,6 +253,18 @@ namespace blogapp_server.Application.Features.Report.Commands.ReviewReport
         private async Task AddTargetNotificationAsync(int userId, NotificationType type, string message, int? postId, int? commentId, CancellationToken cancellationToken)
         {
             await _notificationService.AddAsync(new NotificationCreateModel { UserId = userId, Type = type, Message = message, PostId = postId, CommentId = commentId }, cancellationToken);
+        }
+
+        private async Task SaveChangesWithConcurrencyCheckAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new BadRequestException("Bu şikayet başka bir moderatör tarafından güncellendi. Güncel durumu yeniden yükleyin.");
+            }
         }
     }
 }
