@@ -25,7 +25,7 @@ namespace blogapp_server.Application.Features.Auth.ForgotPassword
                 EmailOrUsername = commandRequest.EmailOrUsername
             };
 
-            var response = await _authService.ForgotPasswordResetAsync(request);
+            var response = await _authService.ForgotPasswordResetAsync(request, cancellationToken);
 
             ForgotPasswordCommandResponse forgotResponse = new(Succeeded: response.Succeeded, Message: response.Message);
             return forgotResponse;

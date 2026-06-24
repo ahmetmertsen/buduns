@@ -24,6 +24,7 @@ namespace blogapp_server.Domain.Entities.Identity
         public ICollection<Comment> Comments { get; set; }
         public ICollection<Like> Like { get; set; }
         public ICollection<AuthSession> AuthSessions { get; set; } = new List<AuthSession>();
+        public ICollection<VerificationChallenge> VerificationChallenges { get; set; } = new List<VerificationChallenge>();
 
         public ICollection<Follower> Followers { get; set; }
         public ICollection<Follower> Followings { get; set; }

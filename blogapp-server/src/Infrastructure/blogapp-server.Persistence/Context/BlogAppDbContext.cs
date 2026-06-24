@@ -28,6 +28,7 @@ namespace blogapp_server.Persistence.Context
         public DbSet<Menu> Menus { get; set; }
         public DbSet<Endpoint> Endpoints { get; set; }
         public DbSet<AuthSession> AuthSessions { get; set; }
+        public DbSet<VerificationChallenge> VerificationChallenges { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -101,6 +102,27 @@ namespace blogapp_server.Persistence.Context
                 entity.HasIndex(session => new { session.UserId, session.RevokedAt });
                 entity.HasIndex(session => session.TokenFamilyId);
                 entity.HasIndex(session => session.ExpiresAt);
+            });
+
+            modelBuilder.Entity<VerificationChallenge>(entity =>
+            {
+                entity.Property(challenge => challenge.Purpose)
+                    .HasConversion<string>();
+
+                entity.Property(challenge => challenge.TargetEmail)
+                    .HasMaxLength(256);
+
+                entity.Property(challenge => challenge.CodeHash)
+                    .HasMaxLength(64)
+                    .IsRequired();
+
+                entity.HasOne(challenge => challenge.User)
+                    .WithMany(user => user.VerificationChallenges)
+                    .HasForeignKey(challenge => challenge.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(challenge => new { challenge.UserId, challenge.Purpose, challenge.TargetEmail, challenge.ConsumedAt });
+                entity.HasIndex(challenge => challenge.ExpiresAt);
             });
 
             modelBuilder.Entity<Bookmark>(entity =>

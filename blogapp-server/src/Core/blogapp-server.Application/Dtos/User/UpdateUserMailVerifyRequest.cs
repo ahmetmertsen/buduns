@@ -9,6 +9,6 @@ namespace blogapp_server.Application.Dtos.User
     public class UpdateUserMailVerifyRequest
     {
         public int UserId { get; set; }
-        public string EmailConfirmToken { get; set; }
+        public string VerificationCode { get; set; }
     }
 }

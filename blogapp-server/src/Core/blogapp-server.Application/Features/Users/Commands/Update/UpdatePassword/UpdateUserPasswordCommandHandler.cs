@@ -22,8 +22,8 @@ namespace blogapp_server.Application.Features.Users.Commands.Update.UpdatePasswo
         {
             UpdateUserPasswordRequest request = new()
             {
-                UserId = commandRequest.UserId,
-                ResetToken = commandRequest.ResetToken,
+                EmailOrUsername = commandRequest.EmailOrUsername,
+                VerificationCode = commandRequest.VerificationCode,
                 newPassword = commandRequest.newPassword,
                 newPasswordConfirmed = commandRequest.newPasswordConfirmed,
             };

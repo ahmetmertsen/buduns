@@ -11,8 +11,8 @@ namespace blogapp_server.Application.Abstractions.Services
     {
         Task<Dtos.Token> LoginAsync(string usernameOrEmail, string password, CancellationToken cancellationToken);
         Task<Dtos.Token> RefreshTokenLoginAsync(string refreshToken, CancellationToken cancellationToken);
-        Task<ForgotPasswordResponse> ForgotPasswordResetAsync(ForgotPasswordRequest request);
+        Task<ForgotPasswordResponse> ForgotPasswordResetAsync(ForgotPasswordRequest request, CancellationToken cancellationToken);
         Task<MailVerifyResponse> MailVerifyAsync(MailVerifyRequest request, CancellationToken cancellationToken);
-        Task<ChangeEmailResponse> ChangeEmailAsync(ChangeEmailRequest request);
+        Task<ChangeEmailResponse> ChangeEmailAsync(ChangeEmailRequest request, CancellationToken cancellationToken);
     }
 }

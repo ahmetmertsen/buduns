@@ -13,6 +13,6 @@ namespace blogapp_server.Application.Features.Users.Commands.Update.UpdateMailVe
     {
         [JsonIgnore]
         public int UserId { get; set; }
-        public string EmailConfirmToken { get; set; }
+        public string VerificationCode { get; set; }
     }
 }

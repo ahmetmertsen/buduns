@@ -1,6 +1,9 @@
 using blogapp_server.Application.Features.Roles.Commands.Create;
 using blogapp_server.Application.Features.Roles.Commands.Update;
 using blogapp_server.Application.Features.Users.Commands.AssignRoleToUser;
+using blogapp_server.Application.Features.Users.Commands.Update.UpdateEmail;
+using blogapp_server.Application.Features.Users.Commands.Update.UpdateMailVerify;
+using blogapp_server.Application.Features.Users.Commands.Update.UpdatePassword;
 using blogapp_server.Application.Features.Users.Queries.GetAll;
 using blogapp_server.Domain.Enums;
 
@@ -96,6 +99,58 @@ public class UserAndRoleValidatorTests
         });
 
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(AssignRoleToUserCommand.Roles));
+    }
+
+    [Fact]
+    public async Task UpdatePassword_ValidCode_ShouldSucceed()
+    {
+        var result = await new UpdateUserPasswordCommandValidator().ValidateAsync(new UpdateUserPasswordCommand
+        {
+            EmailOrUsername = "ahmet@example.com",
+            VerificationCode = "123456",
+            newPassword = "123456",
+            newPasswordConfirmed = "123456"
+        });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("12345")]
+    [InlineData("abcdef")]
+    public async Task UpdatePassword_InvalidCode_ShouldFail(string verificationCode)
+    {
+        var result = await new UpdateUserPasswordCommandValidator().ValidateAsync(new UpdateUserPasswordCommand
+        {
+            EmailOrUsername = "ahmet@example.com",
+            VerificationCode = verificationCode,
+            newPassword = "123456",
+            newPasswordConfirmed = "123456"
+        });
+
+        Assert.Contains(result.Errors, error => error.PropertyName == nameof(UpdateUserPasswordCommand.VerificationCode));
+    }
+
+    [Fact]
+    public async Task UpdateMailVerify_ValidCode_ShouldSucceed()
+    {
+        var result = await new UpdateUserMailVerifyCommandValidator().ValidateAsync(new UpdateUserMailVerifyCommand { VerificationCode = "123456" });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task UpdateEmail_ValidCodes_ShouldSucceed()
+    {
+        var result = await new UpdateUserEmailCommandValidator().ValidateAsync(new UpdateUserEmailCommand
+        {
+            OldEmailVerificationCode = "111111",
+            NewEmailVerificationCode = "222222",
+            NewEmail = "new@example.com"
+        });
+
+        Assert.True(result.IsValid);
     }
 
     [Theory]

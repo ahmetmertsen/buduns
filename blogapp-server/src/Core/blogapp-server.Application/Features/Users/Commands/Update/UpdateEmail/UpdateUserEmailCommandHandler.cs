@@ -23,11 +23,12 @@ namespace blogapp_server.Application.Features.Users.Commands.Update.UpdateEmail
             UpdateUserEmailRequest request = new()
             {
                 UserId = commandRequest.UserId,
-                ChangeEmailToken = commandRequest.ChangeEmailToken,
+                OldEmailVerificationCode = commandRequest.OldEmailVerificationCode,
+                NewEmailVerificationCode = commandRequest.NewEmailVerificationCode,
                 NewEmail = commandRequest.NewEmail,
             };
 
-            var response =  await _userService.UpdateUserEmailAsync(request);
+            var response =  await _userService.UpdateUserEmailAsync(request, cancellationToken);
 
             UpdateUserEmailCommandResponse commandResponse = new(Succeeded: response.Succeeded, Message: response.Message);
             return commandResponse;

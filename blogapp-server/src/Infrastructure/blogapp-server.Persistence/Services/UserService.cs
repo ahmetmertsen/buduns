@@ -4,7 +4,6 @@ using blogapp_server.Application.Common.Consts;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Dtos.User;
 using blogapp_server.Application.Exceptions;
-using blogapp_server.Application.Helpers;
 using blogapp_server.Application.UnitOfWork;
 using blogapp_server.Domain.Entities;
 using blogapp_server.Domain.Entities.Identity;
@@ -29,9 +28,10 @@ namespace blogapp_server.Persistence.Services
         private readonly IMapper _mapper;
         private readonly IAuthSessionService _authSessionService;
         private readonly IMailService _mailService;
+        private readonly IVerificationChallengeService _verificationChallengeService;
         private readonly ILogger<UserService> _logger;
         
-        public UserService(UserManager<User> userManager, RoleManager<Role> roleManager, IMapper mapper, IUnitOfWork unitOfWork, IAuthSessionService authSessionService, IMailService mailService, ILogger<UserService> logger)
+        public UserService(UserManager<User> userManager, RoleManager<Role> roleManager, IMapper mapper, IUnitOfWork unitOfWork, IAuthSessionService authSessionService, IMailService mailService, IVerificationChallengeService verificationChallengeService, ILogger<UserService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -39,6 +39,7 @@ namespace blogapp_server.Persistence.Services
             _unitOfWork = unitOfWork;
             _authSessionService = authSessionService;
             _mailService = mailService;
+            _verificationChallengeService = verificationChallengeService;
             _logger = logger;
         }
 
@@ -80,8 +81,8 @@ namespace blogapp_server.Persistence.Services
                 var message = "Kullanıcı başarıyla kaydedildi. E-posta adresinizi doğrulamanız gerekiyor.";
                 try
                 {
-                    var emailConfirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                    await _mailService.SendVerifyMailAsync(user.Email!, user.FullName, user.Id, emailConfirmToken.UrlEncode());
+                    var verificationCode = await _verificationChallengeService.CreateCodeAsync(user.Id, VerificationPurpose.EmailVerification, user.Email!, cancellationToken);
+                    await _mailService.SendVerifyMailAsync(user.Email!, user.FullName, verificationCode);
 
                     user.EmailVerificationSentAt = DateTime.UtcNow;
                     await _userManager.UpdateAsync(user);
@@ -109,21 +110,26 @@ namespace blogapp_server.Persistence.Services
 
         public async Task<UpdateUserPasswordResponse> UpdatePasswordAsync(UpdateUserPasswordRequest request, CancellationToken cancellationToken)
         {
-            User user = await _userManager.FindByIdAsync(request.UserId.ToString());
+            User user = await _userManager.FindByEmailAsync(request.EmailOrUsername) ?? await _userManager.FindByNameAsync(request.EmailOrUsername);
             if (user == null)
             {
                 throw new NotFoundException("Kullanıcı bulunamadı.");
             }
-            if (string.IsNullOrWhiteSpace(request.ResetToken))
+            if (string.IsNullOrWhiteSpace(user.Email))
             {
-                throw new PasswordChangeFailedException("Şifre sıfırlama bağlantısı geçersiz.");
+                throw new PasswordChangeFailedException("Kullanıcının e-posta adresi bulunamadı.");
+            }
+            if (string.IsNullOrWhiteSpace(request.VerificationCode))
+            {
+                throw new PasswordChangeFailedException("Şifre sıfırlama kodu geçersiz.");
             }
             if (!request.newPassword.Equals(request.newPasswordConfirmed))
             {
                 throw new PasswordChangeFailedException("Şifreler uyuşmuyor.");
             }
-            string resetToken = request.ResetToken.UrlDecode();
 
+            await _verificationChallengeService.ValidateCodeAsync(user.Id, VerificationPurpose.PasswordReset, user.Email, request.VerificationCode, cancellationToken);
+            string resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             IdentityResult result = await _userManager.ResetPasswordAsync(user, resetToken, request.newPassword);
             if (result.Succeeded)
             {
@@ -145,7 +151,7 @@ namespace blogapp_server.Persistence.Services
         }
 
 
-        public async Task<UpdateUserMailVerifyResponse> UpdateUserMailVerify(UpdateUserMailVerifyRequest request)
+        public async Task<UpdateUserMailVerifyResponse> UpdateUserMailVerify(UpdateUserMailVerifyRequest request, CancellationToken cancellationToken)
         {
             User user = await _userManager.FindByIdAsync(request.UserId.ToString());
             if (user == null)
@@ -161,12 +167,18 @@ namespace blogapp_server.Persistence.Services
                 };
             }
 
-            if (string.IsNullOrWhiteSpace(request.EmailConfirmToken))
+            if (string.IsNullOrWhiteSpace(user.Email))
             {
-                throw new BadRequestException("Doğrulama bağlantısı geçersiz.");
+                throw new BadRequestException("Kullanıcının e-posta adresi bulunamadı.");
             }
 
-            string token = request.EmailConfirmToken.UrlDecode();
+            if (string.IsNullOrWhiteSpace(request.VerificationCode))
+            {
+                throw new BadRequestException("Doğrulama kodu geçersiz.");
+            }
+
+            await _verificationChallengeService.ValidateCodeAsync(user.Id, VerificationPurpose.EmailVerification, user.Email, request.VerificationCode, cancellationToken);
+            string token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             IdentityResult result = await _userManager.ConfirmEmailAsync(user, token);
             if (result.Succeeded)
             {
@@ -212,7 +224,7 @@ namespace blogapp_server.Persistence.Services
             }
         }
 
-        public async Task<UpdateUserEmailResponse> UpdateUserEmailAsync(UpdateUserEmailRequest request)
+        public async Task<UpdateUserEmailResponse> UpdateUserEmailAsync(UpdateUserEmailRequest request, CancellationToken cancellationToken)
         {
             User user = await _userManager.FindByIdAsync(request.UserId.ToString());
             if (user == null)
@@ -220,17 +232,35 @@ namespace blogapp_server.Persistence.Services
                 throw new NotFoundException("Kullanıcı bulunamadı.");
             }
 
-            if (string.IsNullOrWhiteSpace(request.ChangeEmailToken))
+            if (string.IsNullOrWhiteSpace(user.Email))
             {
-                throw new BadRequestException("Doğrulama bağlantısı geçersiz.");
+                throw new BadRequestException("Kullanıcının mevcut e-posta adresi bulunamadı.");
             }
-            string token = request.ChangeEmailToken.UrlDecode();
-            IdentityResult result = await _userManager.ChangeEmailAsync(user, request.NewEmail, token);
+
+            if (string.IsNullOrWhiteSpace(request.OldEmailVerificationCode) || string.IsNullOrWhiteSpace(request.NewEmailVerificationCode))
+            {
+                throw new BadRequestException("Doğrulama kodları geçersiz.");
+            }
+
+            var newEmail = request.NewEmail.Trim().ToLowerInvariant();
+            var existingUser = await _userManager.FindByEmailAsync(newEmail);
+            if (existingUser != null)
+            {
+                throw new ChangeEmailFailedException("Email güncellenirken hata oluştu...");
+            }
+
+            var oldEmail = user.Email;
+            await _verificationChallengeService.ValidateEmailChangeCodesAsync(user.Id, newEmail, request.OldEmailVerificationCode, request.NewEmailVerificationCode, cancellationToken);
+
+            string token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            IdentityResult result = await _userManager.ChangeEmailAsync(user, newEmail, token);
 
             if (result.Succeeded)
             {
                 await _userManager.UpdateSecurityStampAsync(user);
                 await _userManager.UpdateAsync(user);
+                await _authSessionService.RevokeAllSessionsAsync(user.Id, "Email changed", cancellationToken);
+                await _mailService.SendMailAsync(oldEmail, "E-Posta Adresiniz Değiştirildi", "BlogApp hesabınızın e-posta adresi değiştirildi. Bu işlemi siz yapmadıysanız hesabınızı güvene alın.");
 
                 return new UpdateUserEmailResponse
                 {

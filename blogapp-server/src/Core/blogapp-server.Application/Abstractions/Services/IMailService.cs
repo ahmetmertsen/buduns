@@ -11,8 +11,9 @@ namespace blogapp_server.Application.Abstractions.Services
         Task SendMailAsync(string to, string subject, string content);
         //Birden fazla kişiye mail gönderilecekse
         Task SendMailAsync(string[] toes, string subject, string content);
-        Task SendForgotPasswordMailAsync(string to, string userFullName, int userId, string resetToken);
-        Task SendVerifyMailAsync(string to, string fullName, int userId, string emailConfirmToken);
-        Task SendChangeEmailMailAsync(string to, string fullName, int userId, string emailChangeToken);
+        Task SendForgotPasswordMailAsync(string to, string userFullName, string verificationCode);
+        Task SendVerifyMailAsync(string to, string fullName, string verificationCode);
+        Task SendChangeEmailOldMailAsync(string to, string fullName, string newEmail, string verificationCode);
+        Task SendChangeEmailMailAsync(string to, string fullName, string verificationCode);
     }
 }

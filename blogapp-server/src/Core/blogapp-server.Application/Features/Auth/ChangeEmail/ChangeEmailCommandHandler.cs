@@ -25,7 +25,7 @@ namespace blogapp_server.Application.Features.Auth.ChangeEmail
                 NewEmail = commandRequest.NewEmail
             };
 
-            var response = await _authService.ChangeEmailAsync(request);
+            var response = await _authService.ChangeEmailAsync(request, cancellationToken);
 
             ChangeEmailCommandResponse changeResponse = new(Succeeded: response.Succeeded, Message: response.Message);
             return changeResponse;

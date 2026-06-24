@@ -3,7 +3,6 @@ using blogapp_server.Application.Abstractions.Token;
 using blogapp_server.Application.Dtos;
 using blogapp_server.Application.Dtos.Auth;
 using blogapp_server.Application.Exceptions;
-using blogapp_server.Application.Helpers;
 using blogapp_server.Domain.Entities.Identity;
 using blogapp_server.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
@@ -19,16 +18,18 @@ namespace blogapp_server.Persistence.Services
         private readonly ITokenHandler _tokenHandler;
         private readonly IAuthSessionService _authSessionService;
         private readonly IMailService _mailService;
+        private readonly IVerificationChallengeService _verificationChallengeService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(UserManager<User> userManager, SignInManager<User> signInManager, ITokenHandler tokenHandler, IAuthSessionService authSessionService, IMailService mailService, IConfiguration configuration, ILogger<AuthService> logger)
+        public AuthService(UserManager<User> userManager, SignInManager<User> signInManager, ITokenHandler tokenHandler, IAuthSessionService authSessionService, IMailService mailService, IVerificationChallengeService verificationChallengeService, IConfiguration configuration, ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _tokenHandler = tokenHandler;
             _authSessionService = authSessionService;
             _mailService = mailService;
+            _verificationChallengeService = verificationChallengeService;
             _configuration = configuration;
             _logger = logger;
         }
@@ -54,12 +55,7 @@ namespace blogapp_server.Persistence.Services
 
             if (!result.Succeeded)
             {
-                _logger.LogWarning(
-                    "Login failed. Reason: {Reason}, UserId: {UserId}, UserName: {UserName}",
-                    "InvalidPassword",
-                    user.Id,
-                    user.UserName);
-
+                _logger.LogWarning("Login failed. Reason: {Reason}, UserId: {UserId}, UserName: {UserName}", "InvalidPassword", user.Id, user.UserName);
                 throw new UnauthorizedAccesException("Kullanıcı adı veya şifre hatalı!");
             }
 
@@ -71,13 +67,7 @@ namespace blogapp_server.Persistence.Services
 
             await _authSessionService.CreateSessionAsync(user.Id, sessionId, Guid.NewGuid(), refreshToken, refreshTokenExpiresAt, cancellationToken);
 
-            _logger.LogInformation(
-                "Login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}, EmailConfirmed: {EmailConfirmed}, SessionId: {SessionId}",
-                user.Id,
-                user.UserName,
-                roles.Count,
-                user.EmailConfirmed,
-                sessionId);
+            _logger.LogInformation("Login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}, EmailConfirmed: {EmailConfirmed}, SessionId: {SessionId}", user.Id, user.UserName, roles.Count, user.EmailConfirmed, sessionId);
 
             return token;
         }
@@ -110,22 +100,17 @@ namespace blogapp_server.Persistence.Services
             var roles = await _userManager.GetRolesAsync(user);
             var token = _tokenHandler.CreateAccessToken(user, roles, replacementSessionId, replacementRefreshToken);
 
-            _logger.LogInformation(
-                "Refresh token login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}, SessionId: {SessionId}",
-                user.Id,
-                user.UserName,
-                roles.Count,
-                replacementSessionId);
+            _logger.LogInformation("Refresh token login succeeded. UserId: {UserId}, UserName: {UserName}, RolesCount: {RolesCount}, SessionId: {SessionId}", user.Id, user.UserName, roles.Count, replacementSessionId);
 
             return token;
         }
 
-        public async Task<ForgotPasswordResponse> ForgotPasswordResetAsync(ForgotPasswordRequest request)
+        public async Task<ForgotPasswordResponse> ForgotPasswordResetAsync(ForgotPasswordRequest request, CancellationToken cancellationToken)
         {
             var response = new ForgotPasswordResponse
             {
                 Succeeded = true,
-                Message = "Mail adresi doğru ise şifre sıfırlama bağlantısı gönderildi."
+                Message = "Mail adresi doğru ise şifre sıfırlama kodu gönderildi."
             };
 
             if (string.IsNullOrWhiteSpace(request.EmailOrUsername))
@@ -135,13 +120,13 @@ namespace blogapp_server.Persistence.Services
 
             var user = await _userManager.FindByEmailAsync(request.EmailOrUsername) ?? await _userManager.FindByNameAsync(request.EmailOrUsername);
 
-            if (user == null)
+            if (user == null || string.IsNullOrWhiteSpace(user.Email))
             {
                 return response;
             }
 
-            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-            await _mailService.SendForgotPasswordMailAsync(user.Email!, user.FullName, user.Id, resetToken.UrlEncode());
+            var verificationCode = await _verificationChallengeService.CreateCodeAsync(user.Id, VerificationPurpose.PasswordReset, user.Email, cancellationToken);
+            await _mailService.SendForgotPasswordMailAsync(user.Email, user.FullName, verificationCode);
 
             return response;
         }
@@ -151,7 +136,7 @@ namespace blogapp_server.Persistence.Services
             var response = new MailVerifyResponse
             {
                 Succeeded = true,
-                Message = "Doğrulama bağlantısı e-posta adresinize gönderildi."
+                Message = "Doğrulama kodu e-posta adresinize gönderildi."
             };
 
             var user = await _userManager.FindByIdAsync(request.UserId.ToString());
@@ -172,8 +157,8 @@ namespace blogapp_server.Persistence.Services
                 return response;
             }
 
-            var emailConfirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            await _mailService.SendVerifyMailAsync(user.Email, user.FullName, user.Id, emailConfirmToken.UrlEncode());
+            var verificationCode = await _verificationChallengeService.CreateCodeAsync(user.Id, VerificationPurpose.EmailVerification, user.Email, cancellationToken);
+            await _mailService.SendVerifyMailAsync(user.Email, user.FullName, verificationCode);
 
             user.EmailVerificationSentAt = DateTime.UtcNow;
             await _userManager.UpdateAsync(user);
@@ -182,12 +167,12 @@ namespace blogapp_server.Persistence.Services
             return response;
         }
 
-        public async Task<ChangeEmailResponse> ChangeEmailAsync(ChangeEmailRequest request)
+        public async Task<ChangeEmailResponse> ChangeEmailAsync(ChangeEmailRequest request, CancellationToken cancellationToken)
         {
             var response = new ChangeEmailResponse
             {
                 Succeeded = true,
-                Message = "Yeni e-posta adresiniz uygunsa doğrulama bağlantısı gönderildi."
+                Message = "Yeni e-posta adresiniz uygunsa mevcut ve yeni e-posta adreslerinize doğrulama kodları gönderildi."
             };
 
             if (string.IsNullOrWhiteSpace(request.NewEmail))
@@ -196,7 +181,7 @@ namespace blogapp_server.Persistence.Services
             }
 
             var user = await _userManager.FindByIdAsync(request.UserId.ToString());
-            if (user == null)
+            if (user == null || string.IsNullOrWhiteSpace(user.Email))
             {
                 return response;
             }
@@ -208,8 +193,10 @@ namespace blogapp_server.Persistence.Services
                 return response;
             }
 
-            var emailChangeToken = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
-            await _mailService.SendChangeEmailMailAsync(newEmail, user.FullName, user.Id, emailChangeToken.UrlEncode());
+            var oldEmailVerificationCode = await _verificationChallengeService.CreateCodeAsync(user.Id, VerificationPurpose.EmailChangeOld, newEmail, cancellationToken);
+            var newEmailVerificationCode = await _verificationChallengeService.CreateCodeAsync(user.Id, VerificationPurpose.EmailChangeNew, newEmail, cancellationToken);
+            await _mailService.SendChangeEmailOldMailAsync(user.Email, user.FullName, newEmail, oldEmailVerificationCode);
+            await _mailService.SendChangeEmailMailAsync(newEmail, user.FullName, newEmailVerificationCode);
 
             return response;
         }

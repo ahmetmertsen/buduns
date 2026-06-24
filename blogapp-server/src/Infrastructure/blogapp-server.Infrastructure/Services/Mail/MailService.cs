@@ -80,36 +80,57 @@ namespace blogapp_server.Infrastructure.Services.Mail
         }
 
         // Şifre Sıfırlama Maili
-        public async Task SendForgotPasswordMailAsync(string to, string fullName, int userId, string resetToken)
+        public async Task SendForgotPasswordMailAsync(string to, string fullName, string verificationCode)
         {
             var utilityResponse = await _unitOfWork.UtilityRepository.GetByNameAsync("FORGOT_PASSWORD");
             string description = utilityResponse.Value;
             description = description.Replace("{full_name}", $"{fullName}");
-            description = description.Replace("{reset_link}", $"https://www.google.com/update-password/{userId}/{resetToken}");
+            description = description.Replace("{verification_code}", verificationCode);
+            description = description.Replace("{reset_code}", verificationCode);
+            description = description.Replace("{reset_link}", verificationCode);
             description = description.Replace("{app_name}", "BlogApp");
 
             await SendMailAsync(to, "Şifre Sıfırlama Talebi", description);
         }
 
         // Mail Doğrulama
-        public async Task SendVerifyMailAsync(string to, string fullName, int userId, string emailConfirmToken)
+        public async Task SendVerifyMailAsync(string to, string fullName, string verificationCode)
         {
             var utilityResponse = await _unitOfWork.UtilityRepository.GetByNameAsync("MAIL_VERIFY");
             string description = utilityResponse.Value;
             description = description.Replace("{full_name}", $"{fullName}");
-            description = description.Replace("{verify_link}", $"https://www.google.com/verify-email/{userId}/{emailConfirmToken}");
+            description = description.Replace("{verification_code}", verificationCode);
+            description = description.Replace("{verify_code}", verificationCode);
+            description = description.Replace("{verify_link}", verificationCode);
             description = description.Replace("{app_name}", "BlogApp");
 
             await SendMailAsync(to, "E-Posta Doğrulama", description);
         }
 
+        // Mevcut Email Değiştirme Onayı
+        public async Task SendChangeEmailOldMailAsync(string to, string fullName, string newEmail, string verificationCode)
+        {
+            var utilityResponse = await _unitOfWork.UtilityRepository.GetByNameAsync("CHANGE_EMAIL_OLD");
+            string description = utilityResponse.Value;
+            description = description.Replace("{full_name}", $"{fullName}");
+            description = description.Replace("{new_email}", newEmail);
+            description = description.Replace("{verification_code}", verificationCode);
+            description = description.Replace("{confirm_code}", verificationCode);
+            description = description.Replace("{confirm_link}", verificationCode);
+            description = description.Replace("{app_name}", "BlogApp");
+
+            await SendMailAsync(to, "E-Posta Değişikliği Onayı", description);
+        }
+
         // Email Değiştirme
-        public async Task SendChangeEmailMailAsync(string to, string fullName, int userId, string emailChangeToken)
+        public async Task SendChangeEmailMailAsync(string to, string fullName, string verificationCode)
         {
             var utilityResponse = await _unitOfWork.UtilityRepository.GetByNameAsync("CHANGE_EMAIL");
             string description = utilityResponse.Value;
             description = description.Replace("{full_name}", $"{fullName}");
-            description = description.Replace("{confirm_link}", $"https://www.google.com/change-email/{userId}/{emailChangeToken}");
+            description = description.Replace("{verification_code}", verificationCode);
+            description = description.Replace("{confirm_code}", verificationCode);
+            description = description.Replace("{confirm_link}", verificationCode);
             description = description.Replace("{app_name}", "BlogApp");
 
             await SendMailAsync(to, "E-Posta Değişikliği Talebi", description);

@@ -13,9 +13,9 @@ namespace blogapp_server.Application.Abstractions.Services
     {
         Task<RegisterUserResponseDto> RegisterAsync(RegisterUserRequestDto request, CancellationToken cancellationToken);
         Task<UpdateUserPasswordResponse> UpdatePasswordAsync(UpdateUserPasswordRequest request, CancellationToken cancellationToken);
-        Task<UpdateUserMailVerifyResponse> UpdateUserMailVerify(UpdateUserMailVerifyRequest request);
+        Task<UpdateUserMailVerifyResponse> UpdateUserMailVerify(UpdateUserMailVerifyRequest request, CancellationToken cancellationToken);
         Task<UpdateUserProfileResponse> UpdateUserProfile(UpdateUserProfileRequest request);
-        Task<UpdateUserEmailResponse> UpdateUserEmailAsync(UpdateUserEmailRequest request);
+        Task<UpdateUserEmailResponse> UpdateUserEmailAsync(UpdateUserEmailRequest request, CancellationToken cancellationToken);
         Task<(List<AdminUserDto> Items, int TotalCount)> GetPagedUsersAsync(int page, int size, string? search, UserStatus? status, bool? emailConfirmed, CancellationToken cancellationToken);
         Task<UserDto> GetUserById(int userId);
         Task<UserDto> GetUserByUserName(string userName);
