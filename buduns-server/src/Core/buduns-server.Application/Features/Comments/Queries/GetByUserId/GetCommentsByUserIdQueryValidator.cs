@@ -1,0 +1,14 @@
+using FluentValidation;
+
+namespace buduns_server.Application.Features.Comments.Queries.GetByUserId
+{
+    public class GetCommentsByUserIdQueryValidator : AbstractValidator<GetCommentsByUserIdQuery>
+    {
+        public GetCommentsByUserIdQueryValidator()
+        {
+            RuleFor(x => x.UserId).GreaterThan(0).WithMessage("User Id 0'dan büyük olmalýdýr.");
+            RuleFor(x => x.Page).GreaterThanOrEqualTo(1).WithMessage("Sayfa numarasý en az 1 olmalýdýr.");
+            RuleFor(x => x.Size).InclusiveBetween(1, 100).WithMessage("Sayfa boyutu 1 ile 100 arasýnda olmalýdýr.");
+        }
+    }
+}

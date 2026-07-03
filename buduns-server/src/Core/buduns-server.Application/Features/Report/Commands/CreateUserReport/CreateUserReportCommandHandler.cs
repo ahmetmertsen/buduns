@@ -1,0 +1,93 @@
+using buduns_server.Application.Exceptions;
+using buduns_server.Application.Common.Helpers;
+using buduns_server.Application.Common.Options;
+using buduns_server.Application.Repositories;
+using buduns_server.Application.UnitOfWork;
+using buduns_server.Domain.Entities.Identity;
+using buduns_server.Domain.Enums;
+using MediatR;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace buduns_server.Application.Features.Report.Commands.CreateUserReport
+{
+    public class CreateUserReportCommandHandler : IRequestHandler<CreateUserReportCommand, CreateUserReportCommandResponse>
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly UserManager<User> _userManager;
+        private readonly ILogger<CreateUserReportCommandHandler> _logger;
+        private readonly ReportPolicyOptions _reportPolicyOptions;
+
+        public CreateUserReportCommandHandler(IUnitOfWork unitOfWork, UserManager<User> userManager, ILogger<CreateUserReportCommandHandler> logger, IOptions<ReportPolicyOptions> reportPolicyOptions)
+        {
+            _unitOfWork = unitOfWork;
+            _userManager = userManager;
+            _logger = logger;
+            _reportPolicyOptions = reportPolicyOptions.Value;
+        }
+
+        public async Task<CreateUserReportCommandResponse> Handle(CreateUserReportCommand request, CancellationToken cancellationToken)
+        {   
+            if (request.UserId == request.TargetUserId)
+            {
+                throw new BadRequestException("Kendinizi þikayet edemezsiniz.");
+            }
+                
+            User? targetUser = await _userManager.FindByIdAsync(request.TargetUserId.ToString());
+            if (targetUser == null)
+            {
+                throw new NotFoundException("Þikayet edilen kullanýcý bulunamadý.");
+            }
+
+            if (targetUser.Status == UserStatus.Banned)
+            {
+                throw new BadRequestException("Bu kullanýcý zaten platformdan yasaklanmýþ.");
+            }
+
+            var recentReportCount = await _unitOfWork.ReportRepository.CountRecentReportsByUserAsync(request.UserId, DateTime.UtcNow.AddHours(-24), cancellationToken);
+            var dailyReportLimit = Math.Max(1, _reportPolicyOptions.DailyReportLimit);
+            if (recentReportCount >= dailyReportLimit)
+            {
+                throw new TooManyRequestsException($"24 saat içinde en fazla {dailyReportLimit} þikayet oluþturabilirsiniz.");
+            }
+                
+
+            bool alreadyReported = await _unitOfWork.ReportRepository.HasPendingUserReportAsync(request.UserId, request.TargetUserId, cancellationToken);
+            if (alreadyReported)
+            {
+                throw new BadRequestException("Bu kullanýcý için zaten bekleyen bir þikayetiniz var.");
+            }
+                
+
+            Domain.Entities.Report report = new()
+            {
+                ReporterUserId = request.UserId,
+                TargetType = ReportTargetType.User,
+                TargetPostId = null,
+                TargetUserId = request.TargetUserId,
+                TargetOwnerUserId = targetUser.Id,
+                TargetOwnerUserNameSnapshot = targetUser.UserName,
+                TargetOwnerFullNameSnapshot = targetUser.FullName,
+                TargetContentSnapshot = ReportSnapshotHelper.CreateContentSnapshot(targetUser.Bio),
+                Reason = request.Reason,
+                Description = request.Description?.Trim(),
+                Status = ReportStatus.Pending,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.ReportRepository.AddAsync(report);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("User report created. ReportId: {ReportId}, ReporterUserId: {ReporterUserId}, TargetUserId: {TargetUserId}, Reason: {Reason}", report.Id, request.UserId, request.TargetUserId, request.Reason);
+
+            return new CreateUserReportCommandResponse(Succeeded:true, Message:"Þikayetiniz baþarýyla alýndý.");
+        }
+
+    }
+}

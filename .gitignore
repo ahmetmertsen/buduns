@@ -2,3 +2,8 @@
 **/bin/
 **/obj/
 **/TestResults/
+# Local secrets
+**/appsettings.Local.json
+**/.env
+**/.env.*
+!**/.env.example

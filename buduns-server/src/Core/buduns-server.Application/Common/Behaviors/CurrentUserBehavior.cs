@@ -1,0 +1,62 @@
+using buduns_server.Application.Common.Interfaces;
+using buduns_server.Application.Exceptions;
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace buduns_server.Application.Common.Behaviors
+{
+    public class CurrentUserBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : class
+    {
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public CurrentUserBehavior(IHttpContextAccessor httpContextAccessor)
+        {
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+        {
+            if (request is ICurrentUserRequest || request is ICurrentSessionRequest)
+            {
+                var user = _httpContextAccessor.HttpContext?.User;
+                if (user?.Identity?.IsAuthenticated != true)
+                {
+                    throw new UnauthorizedAccesException("Kullanýcý doðrulanamadý.");
+                }
+
+                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                    user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ??
+                    user.FindFirst("sub")?.Value;
+
+                if (!int.TryParse(userIdClaim, out var userId))
+                {
+                    throw new UnauthorizedAccesException("Geçerli kullanýcý bilgisi bulunamadý.");
+                }
+
+                if (request is ICurrentUserRequest currentUserRequest)
+                {
+                    currentUserRequest.UserId = userId;
+                }
+
+                if (request is ICurrentSessionRequest currentSessionRequest)
+                {
+                    var sessionIdClaim = user.FindFirst("sid")?.Value ?? user.FindFirst(ClaimTypes.Sid)?.Value;
+                    if (!Guid.TryParse(sessionIdClaim, out var sessionId))
+                    {
+                        throw new UnauthorizedAccesException("Geçerli oturum bilgisi bulunamadý.");
+                    }
+
+                    currentSessionRequest.CurrentSessionId = sessionId;
+                }
+            }
+            return await next();
+        }
+    }
+}
